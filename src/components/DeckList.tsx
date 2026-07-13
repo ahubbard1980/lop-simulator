@@ -75,7 +75,7 @@ export function DeckList({ deck, validation, index, onRenameDeck, onAdd, onRemov
               onMouseEnter={() => setHoveredKey(cardKey(lordTmpl))}
               onMouseLeave={() => setHoveredKey(null)}
             >
-              {lordTmpl.imageUrl && <img className="deck-lord-thumb" src={lordTmpl.imageUrl} alt={lordTmpl.name} draggable={false} />}
+              {lordTmpl.imageUrl && <img className="deck-lord-thumb" src={lordTmpl.imageUrl} alt={lordTmpl.name} draggable={false} loading="lazy" />}
               <span className="deck-entry-name">{lordTmpl.name}</span>
               <div className="deck-entry-controls">
                 <button onClick={onClearLord}>−</button>

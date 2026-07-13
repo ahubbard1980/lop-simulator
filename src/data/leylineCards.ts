@@ -13,7 +13,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/leylines/${encodeURI(name)}.png`;
+  return `/cards/leylines/${encodeURI(name)}.webp`;
 }
 
 export const LEYLINE_CARDS: CardTemplate[] = [

@@ -17,7 +17,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/prismatic/${encodeURI(name)}.png`;
+  return `/cards/prismatic/${encodeURI(name)}.webp`;
 }
 
 export const PRISMATIC_CARDS: CardTemplate[] = [

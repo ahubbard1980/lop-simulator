@@ -15,7 +15,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/tokens/${encodeURI(name)}.png`;
+  return `/cards/tokens/${encodeURI(name)}.webp`;
 }
 
 export const TOKEN_CARDS: CardTemplate[] = [

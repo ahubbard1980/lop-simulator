@@ -11,7 +11,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/corruption/${encodeURI(name)}.png`;
+  return `/cards/corruption/${encodeURI(name)}.webp`;
 }
 
 export const CORRUPTION_CARDS: CardTemplate[] = [

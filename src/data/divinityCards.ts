@@ -11,7 +11,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/divinity/${encodeURI(name)}.png`;
+  return `/cards/divinity/${encodeURI(name)}.webp`;
 }
 
 export const DIVINITY_CARDS: CardTemplate[] = [

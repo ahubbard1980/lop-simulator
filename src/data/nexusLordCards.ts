@@ -3,7 +3,7 @@ import type { Affinity } from './affinities';
 const SET = 'Awakening';
 
 function img(name: string, side: 'Front' | 'Back') {
-  return `/cards/nexuslords/${encodeURI(name)} - ${side}.png`;
+  return `/cards/nexuslords/${encodeURI(name)} - ${side}.webp`;
 }
 
 export interface NexusLordSide {

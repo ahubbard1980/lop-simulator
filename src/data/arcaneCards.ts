@@ -11,7 +11,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/arcane/${encodeURI(name)}.png`;
+  return `/cards/arcane/${encodeURI(name)}.webp`;
 }
 
 export const ARCANE_CARDS: CardTemplate[] = [

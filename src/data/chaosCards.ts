@@ -11,7 +11,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/chaos/${encodeURI(name)}.png`;
+  return `/cards/chaos/${encodeURI(name)}.webp`;
 }
 
 export const CHAOS_CARDS: CardTemplate[] = [

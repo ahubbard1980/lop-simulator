@@ -42,7 +42,7 @@ function LordPicker({ label, affinity, value, onChange }: LordPickerProps) {
             className={`lord-picker-option${o.name === value ? ' active' : ''}`}
             onClick={() => onChange(o.name)}
           >
-            {o.imageUrl && <img src={o.imageUrl} alt={o.name} draggable={false} />}
+            {o.imageUrl && <img src={o.imageUrl} alt={o.name} draggable={false} loading="lazy" />}
             <span>{o.name}</span>
           </button>
         ))}

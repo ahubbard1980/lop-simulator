@@ -11,7 +11,7 @@ import type { CardTemplate } from './placeholderCards';
 const SET = 'Awakening';
 
 function img(name: string): string {
-  return `/cards/primal/${encodeURI(name)}.png`;
+  return `/cards/primal/${encodeURI(name)}.webp`;
 }
 
 export const PRIMAL_CARDS: CardTemplate[] = [

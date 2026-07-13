@@ -110,7 +110,7 @@ export const CardView = forwardRef<HTMLDivElement, CardViewProps>(function CardV
     >
       {isFaceDown ? (
         <div className="card-face card-back" style={regularFaceStyle(w)}>
-          <img src="/cards/card-back.png" alt="Card back" draggable={false} />
+          <img src="/cards/card-back.webp" alt="Card back" draggable={false} loading="lazy" />
         </div>
       ) : displayImageUrl ? (
         // Real card art already has name/cost/type/rules text baked in —
@@ -121,7 +121,7 @@ export const CardView = forwardRef<HTMLDivElement, CardViewProps>(function CardV
           className={`card-face card-front card-front-art${isNexusLord ? ' card-front-art-nexus-lord' : ''}`}
           style={isNexusLord ? nexusLordFaceStyle(w) : regularFaceStyle(w)}
         >
-          <img src={displayImageUrl} alt={card.name} draggable={false} />
+          <img src={displayImageUrl} alt={card.name} draggable={false} loading="lazy" />
         </div>
       ) : (
         <div
