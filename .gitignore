@@ -1,0 +1,37 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Claude Code session-local tooling config — not part of the deployed app.
+.claude/
+
+# Raw print-sheet source art (one-time crop pipeline inputs, see
+# scripts/process-*.ps1 convention in BUILD_SPEC.md) — the app only reads
+# the processed output in public/cards/ and public/icons/. These folders
+# are large and not needed to build or run the app.
+Awakening-*/
+LOP Affinity Icons/
+LOP Card Back/
+LOP Logo/
+60.png
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

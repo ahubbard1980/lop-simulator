@@ -1,0 +1,2156 @@
+:root {
+  /* Neutral gray play surface, per the reference mockup — both halves share
+     the same tone, with the gold divider doing the work of separating them. */
+  --surface-top: #6b6c70;
+  --surface-top-2: #535457;
+  --surface-bottom: #6b6c70;
+  --surface-bottom-2: #535457;
+  --divider: #c9a94e;
+
+  --app-bg: #131418;
+  --sidebar-bg: #1a1b1f;
+  --sidebar-bg-2: #212226;
+  --sidebar-border: #34363c;
+  --sidebar-fg: #eceae4;
+  --muted-fg: #9a9ba3;
+
+  --gold: #cda94f;
+  --gold-bright: #e8c977;
+  --ink: #16171a;
+  --danger: #d1483c;
+  --success: #4f9c6a;
+
+  color-scheme: dark;
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--app-bg);
+  color: var(--sidebar-fg);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Setup screen ---------- */
+.setup-screen {
+  max-width: 520px;
+  margin: 8vh auto;
+  padding: 32px;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1px solid var(--sidebar-border);
+  border-radius: 12px;
+  overflow-y: auto;
+  max-height: 84vh;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.setup-screen h1 {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin: 0 0 12px;
+  color: var(--gold-bright);
+}
+.setup-note {
+  color: var(--muted-fg);
+  margin-bottom: 22px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.setup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.setup-row label {
+  color: #c6c5cc;
+  font-size: 13px;
+  font-weight: 500;
+}
+.setup-row input,
+.setup-row select {
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 7px 10px;
+  border-radius: 7px;
+  min-width: 180px;
+}
+.setup-toggle {
+  display: inline-flex;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--sidebar-border);
+}
+.setup-toggle button {
+  background: #26272c;
+  border: none;
+  color: var(--sidebar-fg);
+  padding: 7px 16px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.setup-toggle button + button {
+  border-left: 1px solid var(--sidebar-border);
+}
+.setup-toggle button.active {
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  font-weight: 600;
+}
+.setup-row-lords {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.lord-picker {
+  display: flex;
+  gap: 10px;
+}
+.lord-picker-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--sidebar-fg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.lord-picker-option:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.lord-picker-option.active {
+  border-color: var(--gold-bright);
+  background: rgba(232, 201, 119, 0.12);
+}
+.lord-picker-option img {
+  width: 100%;
+  border-radius: 4px;
+  display: block;
+}
+.lord-picker-option span {
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.setup-start {
+  width: 100%;
+  padding: 13px;
+  margin-top: 10px;
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 14px rgba(205, 169, 79, 0.25);
+}
+.setup-deck-builder-link {
+  width: 100%;
+  padding: 11px;
+  margin-top: 8px;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.setup-deck-builder-link:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+
+/* ---------- Online setup (room codes over Supabase Realtime) ---------- */
+.online-setup {
+  display: flex;
+  flex-direction: column;
+}
+.online-signin-gate {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.online-code-input {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+.online-deck-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.online-deck-empty {
+  color: var(--muted-fg);
+  font-size: 13px;
+  padding: 8px 0;
+}
+.online-deck-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.online-deck-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: var(--sidebar-fg);
+  font-size: 13px;
+  text-align: left;
+}
+.online-deck-option:hover:not(:disabled) {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.online-deck-option.active {
+  border-color: var(--gold-bright);
+  background: rgba(232, 201, 119, 0.12);
+}
+.online-deck-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.online-deck-option span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.online-deck-option-affinity {
+  color: var(--muted-fg);
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+.online-deck-option-flag {
+  flex: 0 0 auto;
+  color: #e07a6e;
+  font-size: 11px;
+  font-weight: 600;
+}
+.online-error {
+  color: #e07a6e;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.online-waiting {
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.online-waiting-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.online-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba(232, 201, 119, 0.25);
+  border-top-color: var(--gold-bright);
+  animation: online-spin 0.8s linear infinite;
+}
+@keyframes online-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.online-room-code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  padding: 12px 18px;
+}
+.online-room-code span:first-child {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--gold-bright);
+}
+.online-room-code button {
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 12px;
+  min-width: 62px;
+  transition: background 0.15s ease;
+}
+.online-room-code button.copied {
+  background: #3fa65e;
+  color: #eafff0;
+}
+.setup-toggle-single {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.setup-toggle-single:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+
+/* ---------- Board layout ---------- */
+.board-root {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.board-play-surface {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.board-half {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  /* Free-positioned field cards must never visually bleed into the other
+     player's half (or beyond it) — clip hard at the half's own boundary. */
+  overflow: hidden;
+}
+.board-half-top {
+  background: linear-gradient(180deg, var(--surface-top) 0%, var(--surface-top-2) 100%);
+}
+.board-half-bottom {
+  background: linear-gradient(0deg, var(--surface-bottom) 0%, var(--surface-bottom-2) 100%);
+}
+.board-divider {
+  height: 3px;
+  flex: 0 0 auto;
+  background: linear-gradient(90deg, transparent, var(--divider) 12%, var(--gold-bright) 50%, var(--divider) 88%, transparent);
+  box-shadow: 0 0 10px rgba(201, 169, 78, 0.5);
+  position: relative;
+  z-index: 5;
+}
+
+.player-area {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 250px;
+  grid-template-areas: "pile main lord";
+  gap: 4px;
+  padding: 10px 14px;
+}
+.player-area-opponent {
+  /* Column widths are asymmetric (pile vs lord), so mirroring just the area
+     names isn't enough — the column sizes have to flip sides too, or the
+     lord column would get squeezed into the narrower pile-column width. */
+  grid-template-columns: 250px minmax(0, 1fr) 190px;
+  grid-template-areas: "lord main pile";
+}
+
+.pile-column {
+  grid-area: pile;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;
+}
+.pile-column::-webkit-scrollbar {
+  display: none;
+}
+.lord-column {
+  grid-area: lord;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;
+}
+.lord-column::-webkit-scrollbar {
+  display: none;
+}
+.main-column {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.player-area-opponent .main-column {
+  flex-direction: column-reverse;
+}
+/* pile-column (deck/dustrealm/banished) is a top-to-bottom stack same as
+   main-column, so it needs the same vertical mirroring for the opponent —
+   otherwise the deck (rendered first) stays pinned to the outer top edge
+   instead of ending up nearest the divider, the way it sits for the
+   bottom player. */
+.player-area-opponent .pile-column {
+  flex-direction: column-reverse;
+}
+
+.field-row {
+  flex: 1 1 auto;
+  position: relative;
+  /* Must clear the card height (161px) plus its border/shadow, or the
+     field-zone's overflow:hidden clips the top/bottom of every card. */
+  min-height: 190px;
+}
+.field-zone {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+/* Fills field-zone and centers field-row-flow within it — needed now that
+   the row itself is shrink-to-fit (see below) rather than stretched to
+   100% width. */
+.field-zone-measure {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Same flexbox flow as the Leyline Row, just with a bit more breathing room
+   between cards since the field tends to hold more of them. Never wraps —
+   when the row doesn't fit on one line, Field/LeylineRow's useFitScale
+   shrinks it via transform instead (see field-zone-measure comment above);
+   a fixed-height zone can't grow to fit a wrapped second line, so wrapping
+   just clipped it. */
+.field-row-flow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: nowrap;
+  transform-origin: center;
+}
+.field-card-wrap {
+  position: relative;
+}
+
+/* ---------- Zone corner brackets ---------- */
+.zone-corners {
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  z-index: 1;
+}
+.zone-corners-tight {
+  inset: -6px;
+}
+.zone-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 0 solid var(--gold-bright);
+  opacity: 0.4;
+  filter: drop-shadow(0 0 2px rgba(205, 169, 79, 0.35));
+}
+/* A tiny gold accent point right at the elbow of each bracket — a small
+   "jeweled corner" touch rather than a plain right-angle line. */
+.zone-corner::before {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--gold-bright);
+  transform: rotate(45deg);
+  opacity: 0.6;
+  box-shadow: 0 0 3px rgba(232, 201, 119, 0.5);
+}
+.zone-corner-tl {
+  top: 0;
+  left: 0;
+  border-top-width: 2px;
+  border-left-width: 2px;
+  border-top-left-radius: 6px;
+}
+.zone-corner-tl::before {
+  top: -3px;
+  left: -3px;
+}
+.zone-corner-tr {
+  top: 0;
+  right: 0;
+  border-top-width: 2px;
+  border-right-width: 2px;
+  border-top-right-radius: 6px;
+}
+.zone-corner-tr::before {
+  top: -3px;
+  right: -3px;
+}
+.zone-corner-bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  border-bottom-left-radius: 6px;
+}
+.zone-corner-bl::before {
+  bottom: -3px;
+  left: -3px;
+}
+.zone-corner-br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+  border-bottom-right-radius: 6px;
+}
+.zone-corner-br::before {
+  bottom: -3px;
+  right: -3px;
+}
+
+.leyline-row-wrap {
+  flex: 0 0 auto;
+  padding: 4px 0;
+}
+.leyline-row-zone {
+  position: relative;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+/* Fills leyline-row-zone and centers leyline-row within it — needed now
+   that the row itself is shrink-to-fit (see below) rather than stretched
+   to 100% width. */
+.leyline-row-measure {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Never wraps — when the row doesn't fit on one line, LeylineRow's
+   useFitScale shrinks it via transform instead (see leyline-row-measure
+   comment above); a fixed-height zone can't grow to fit a wrapped second
+   line, so wrapping just clipped it. */
+.leyline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  transform-origin: center;
+}
+.leyline-stack {
+  position: relative;
+  height: 161px;
+}
+
+.hand-row {
+  flex: 0 0 auto;
+  padding: 2px 0 0;
+}
+.hand-zone {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.hand-zone.hand-over {
+  background: rgba(232, 201, 119, 0.12);
+  outline: 2px dashed var(--gold-bright);
+}
+/* A flex item's width shrinks to its content by default, which would make
+   this useless as the thing Hand.tsx measures to decide how wide to make
+   the fan (a self-referential loop: width depends on the measurement,
+   the measurement depends on the width). Stretching it to the zone's full
+   available width breaks that loop and gives the fan real room to spread
+   into, while still centering it via its own flex context. */
+.hand-row-measure {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+/* No clipping/cropping here — tall enough to fully contain the resting card
+   (161px), so nothing is ever cut off and nothing is ever visually or
+   interactively (clip-path removes hit-testing too) unreachable. */
+.hand-fan {
+  position: relative;
+  height: 161px;
+}
+/* Cards sit upright in a straight overlapping row — no fan rotation. A
+   rotated fan meant each card's hit box was a tilted rectangle whose
+   corners swung sideways into whichever neighbor sat at a higher z-index,
+   making some cards effectively unclickable/unhoverable no matter how
+   precisely elementFromPoint was targeted. Upright boxes only ever overlap
+   along a flat vertical edge, so the only "wrong" hits are the legitimate
+   ones — the right-hand neighbor's genuinely-on-top sliver — never a
+   neighbor's corner poking in from an angle. */
+.hand-card-slot:hover {
+  z-index: 500 !important;
+}
+/* Pops the hovered card up and enlarges it from its own bottom edge, so it
+   grows upward into open space and never drifts down past the bottom of
+   the play area. The engage transition (mouse enters) has a short delay;
+   the release transition (mouse leaves, below) does not. dnd-kit measures
+   a card's on-screen box the instant a drag starts — the moment the
+   pointer has moved ~4px — to anchor the drag overlay to the cursor. A
+   real drag flick clears that 4px within a few milliseconds, well inside
+   this delay, so the pop-out transform never actually applies to the DOM
+   before `dragging-active` (below) forces it off; without the delay,
+   dnd-kit could measure the already-enlarged, upward-shifted box and the
+   dragged card would render offset from the cursor for the whole drag. */
+.hand-card-zoom {
+  transform-origin: 50% 100%;
+  border-radius: 5px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hand-card-slot:hover .hand-card-zoom {
+  transition: transform 0.15s ease 0.1s, box-shadow 0.15s ease 0.1s;
+  transform: translateY(-28px) scale(1.9);
+  /* inset shadow with a spread larger than the card itself fills the whole
+     box uniformly — a cheap way to wash the card in a translucent gold
+     tint without an extra overlay element. */
+  box-shadow: inset 0 0 0 300px rgba(232, 201, 119, 0.16), 0 14px 24px rgba(0, 0, 0, 0.6);
+}
+/* While any card is being dragged, the pointer sweeping across other hand
+   cards would otherwise keep toggling their hover pop-out on and off —
+   that fighting-with-the-drag look is what read as jitter/shake. */
+.dragging-active .hand-card-slot:hover {
+  z-index: auto !important;
+}
+.dragging-active .hand-card-slot:hover .hand-card-zoom {
+  transform: none;
+  filter: none;
+}
+.hand-warning {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ffb84d;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.is-over {
+  background: rgba(232, 201, 119, 0.1);
+  outline: 2px dashed rgba(232, 201, 119, 0.55);
+  outline-offset: -2px;
+}
+
+/* ---------- Cards ---------- */
+.card-view {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
+  touch-action: none;
+}
+.card-view.is-dragging {
+  cursor: grabbing;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
+}
+/* The DragOverlay clone that actually follows the cursor — portaled to
+   document.body by dnd-kit, so it paints above every zone regardless of
+   overflow:hidden clipping or local stacking contexts. */
+.drag-overlay-card {
+  cursor: grabbing;
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+.card-view.is-drop-target {
+  box-shadow: 0 0 0 3px var(--gold-bright);
+}
+.card-view.card-dimmed {
+  opacity: 0.5;
+}
+
+.card-face {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+.card-back {
+  border: 6px solid #000;
+  border-bottom-width: 3px;
+  padding: 0;
+  background: #000;
+}
+.card-back img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+
+.card-front {
+  border: 6px solid #000;
+  border-bottom-width: 3px;
+  display: flex;
+  flex-direction: column;
+  padding: 5px 6px;
+  font-size: 10px;
+  background-blend-mode: multiply;
+}
+/* Real card art already has name/cost/rules text baked in — no padding or
+   text layout needed, just the image filling the frame. Now that the art
+   is cropped to just the card (no more baked-in bleed margin), it uses the
+   same 5px border as the placeholder cards/backs via .card-front. */
+.card-front-art {
+  padding: 0;
+  /* Backs any letterbox gap left by object-fit: contain below, so it reads
+     as part of the card's own black border instead of background bleeding
+     through. */
+  background: #000;
+}
+/* .card-front is border-box, so trimming border-bottom-width to 3px above
+   doesn't shrink the card — it grows this content box by the 3px the
+   border gave up. With object-fit: contain, the image stays pinned to its
+   (unchanged) width-constrained size and that extra 3px shows up as
+   letterbox — split top/bottom by default, which visibly thickened the
+   top border and shifted the art down. object-fit: fill stretches the art
+   to exactly fill the taller box instead (~2% vertical stretch,
+   imperceptible at card size), keeping the art flush against the top
+   border and restoring the intended 6/6/6/3 border split. */
+.card-front-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+/* Nexus Lords print their own ornate frame directly into the art, so they
+   skip the thick black photo-border — just a thin 2px line to define the
+   card's edge against the play area background. */
+.card-front-art-nexus-lord {
+  border: 3px solid #000;
+  background: transparent;
+  border-radius: 6px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.1px;
+}
+.card-cost {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.card-type-line {
+  font-size: 8.5px;
+  opacity: 0.85;
+  margin-top: 1px;
+  letter-spacing: 0.2px;
+}
+.card-art {
+  flex: 1;
+  margin: 4px 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  background-color: rgba(0, 0, 0, 0.28);
+  background-image: repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(255, 255, 255, 0.09) 6px, rgba(255, 255, 255, 0.09) 12px);
+}
+.card-rules {
+  font-size: 7.5px;
+  line-height: 1.25;
+  max-height: 38px;
+  overflow: hidden;
+  opacity: 0.92;
+}
+.card-pt {
+  align-self: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.card-counters {
+  position: absolute;
+  bottom: -6px;
+  left: 2px;
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.card-counter-badge {
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.attached-sigil {
+  pointer-events: auto;
+}
+
+/* ---------- Token stacks (disabled, see FieldZone.tsx) ---------- */
+/*
+.token-stack-behind {
+  pointer-events: none;
+  filter: brightness(0.82);
+}
+.token-stack-badge {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+*/
+
+/* ---------- Piles ---------- */
+.pile-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+/* Each pile-zone renders label-then-stack (label above the card) — mirror
+   that to stack-then-label for the opponent, same as pile-column above,
+   so the label sits on the outer edge on both sides instead of always
+   being the one closest to the divider. */
+.player-area-opponent .pile-zone {
+  flex-direction: column-reverse;
+}
+.pile-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #f1efe8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  margin-bottom: 3px;
+}
+.pile-stack {
+  position: relative;
+}
+.pile-empty {
+  width: 115px;
+  height: 161px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.pile-count-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+/* ---------- Nexus Lord panel ---------- */
+.nexus-lord-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+.nexus-lord-name {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.nexus-lord-counters {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 14px;
+  margin-top: 6px;
+}
+.counter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #d9d8e0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.counter-value {
+  font-weight: 700;
+  font-size: 19px;
+  min-width: 26px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  color: var(--gold-bright);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.counter-input {
+  width: 44px;
+  font-size: 14px;
+  text-align: center;
+  border-radius: 5px;
+  border: 1px solid var(--sidebar-border);
+}
+
+/* ---------- Zone overlay ---------- */
+.zone-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.7);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.zone-overlay {
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1px solid var(--sidebar-border);
+  border-radius: 12px;
+  padding: 18px;
+  width: min(900px, 90vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+.zone-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.zone-overlay-header button {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 5px 12px;
+}
+.zone-overlay-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  overflow-y: auto;
+}
+.zone-overlay-empty {
+  color: var(--muted-fg);
+  padding: 24px;
+}
+
+/* ---------- Token picker ---------- */
+.token-picker-option {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.token-picker-option:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 0 3px var(--gold-bright);
+}
+.token-picker-custom {
+  width: 115px;
+  height: 161px;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px dashed var(--sidebar-border);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.token-picker-custom:hover {
+  box-shadow: 0 0 0 3px var(--gold-bright);
+}
+
+/* ---------- Chants (shared LIFO stack) ---------- */
+.chants-column {
+  width: 150px;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border-left: 1px solid var(--sidebar-border);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 8px;
+  gap: 4px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  position: relative;
+}
+.chants-column::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--gold), transparent);
+  opacity: 0.6;
+}
+.chants-column::-webkit-scrollbar {
+  display: none;
+}
+.chants-label {
+  font-weight: 700;
+  color: var(--gold-bright);
+  font-size: 14px;
+  letter-spacing: 0.4px;
+}
+.chants-hint {
+  font-size: 10px;
+  color: var(--muted-fg);
+  text-align: center;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.chants-zone {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+}
+.chants-pile {
+  position: relative;
+  width: 115px;
+}
+.chants-empty {
+  width: 115px;
+  height: 161px;
+  border: 2px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  padding: 8px;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 300px;
+  flex: 0 0 auto;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Floating hover preview — pinned to the top-right corner of the viewport
+   (roughly where the sidebar already lives) instead of the cursor, so it
+   never covers the board/hand/field the player is actively using.
+   pointer-events:none means it can't block clicks or drags underneath it. */
+.hover-preview {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 3000;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.65));
+}
+
+.chat-log {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--sidebar-bg-2);
+}
+.chat-log-title {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+  color: var(--gold-bright);
+}
+.chat-log-body {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+.chat-log-entry {
+  line-height: 1.35;
+  color: #d3d2d8;
+}
+.chat-log-time {
+  color: var(--muted-fg);
+}
+.chat-log-chat {
+  color: #a9c4ff;
+  font-style: italic;
+}
+.chat-log-input {
+  margin-top: 8px;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 7px 10px;
+  border-radius: 7px;
+}
+.chat-log-input::placeholder {
+  color: #6c6d75;
+}
+
+.match-info {
+  flex: 0 0 auto;
+  font-size: 12px;
+  border-top: 1px solid var(--sidebar-border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.match-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #c6c5cc;
+}
+.turn-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.turn-control button,
+.initiative-toggle {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 5px;
+  padding: 2px 9px;
+  margin-left: 6px;
+}
+
+.button-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.button-bar button {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.button-bar button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.button-bar svg {
+  width: 18px;
+  height: 18px;
+}
+.btn-yellow {
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+}
+.btn-green {
+  background: linear-gradient(165deg, #5fbb7d, var(--success));
+  color: #0c1f0d;
+}
+.btn-red {
+  background: linear-gradient(165deg, #e0574a, var(--danger));
+  color: #2a0a06;
+}
+.btn-gray {
+  background: linear-gradient(165deg, #8f9099, #75767e);
+  color: #1c1a16;
+}
+.btn-blue {
+  background: linear-gradient(165deg, #5f9fe0, #3f7ec9);
+  color: #0a1a2e;
+}
+
+.new-turn-btn {
+  width: 100%;
+  padding: 11px;
+  margin-bottom: 6px;
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 14px rgba(205, 169, 79, 0.25);
+}
+
+/* ---------- Context menu ---------- */
+.context-menu {
+  position: fixed;
+  z-index: 4000;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1px solid var(--sidebar-border);
+  border-radius: 9px;
+  padding: 4px;
+  min-width: 210px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 12px;
+  color: var(--sidebar-fg);
+  font-size: 13px;
+  border-radius: 6px;
+}
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.context-menu-item-danger {
+  color: #ff8a75;
+}
+.context-menu-separator {
+  height: 1px;
+  background: var(--sidebar-border);
+  margin: 4px 6px;
+}
+
+/* ---------- Settings modal ---------- */
+.settings-modal {
+  width: min(420px, 90vw);
+}
+.settings-section {
+  margin-bottom: 18px;
+}
+.settings-section-title {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--gold-bright);
+  margin-bottom: 10px;
+}
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #c6c5cc;
+}
+.settings-row input[type='color'] {
+  width: 52px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+.settings-reset {
+  width: 100%;
+  padding: 9px;
+  margin-top: 4px;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+}
+.settings-danger {
+  width: 100%;
+  padding: 11px;
+  background: linear-gradient(165deg, #e0574a, var(--danger));
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* ---------- Deck builder ---------- */
+.deck-builder {
+  /* Widened so the deck-list panel's left edge lines up with the "Open
+     Deck" button's left edge above it — see .deck-menubar / .deck-main. */
+  --deck-list-w: 480px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+}
+
+.deck-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.deck-logo {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 0;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.deck-logo img {
+  display: block;
+  height: 48px;
+  width: 48px;
+  object-fit: contain;
+}
+.deck-logo:hover {
+  transform: scale(1.06);
+  filter: brightness(1.12);
+}
+.deck-search {
+  flex: 1 1 auto;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  max-width: 640px;
+}
+.deck-search::placeholder {
+  color: #6c6d75;
+}
+
+/* ---------- Account menu (topbar, right of search) ---------- */
+.account-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.account-signin-btn,
+.account-signed-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.account-signin-btn:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.account-user-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--gold-bright);
+}
+.account-signed-in {
+  gap: 10px;
+}
+.account-email {
+  color: var(--muted-fg);
+  font-size: 12px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-signed-in button {
+  background: none;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.account-signed-in button:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.account-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 260px;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.account-mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: #1c1d21;
+  border-radius: 6px;
+  padding: 3px;
+}
+.account-mode-toggle button {
+  flex: 1 1 0;
+  background: none;
+  border: none;
+  color: var(--muted-fg);
+  padding: 6px 0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.account-mode-toggle button.active {
+  background: #33343a;
+  color: var(--sidebar-fg);
+}
+.account-input {
+  background: #1c1d21;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.account-error {
+  color: #e07a6e;
+  font-size: 12px;
+}
+.account-info {
+  color: var(--gold-bright);
+  font-size: 12px;
+}
+.account-action-row {
+  display: flex;
+  gap: 8px;
+}
+.account-action-row button,
+.account-action-row-single {
+  flex: 1 1 0;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  padding: 7px 0;
+  font-size: 12px;
+}
+.account-action-row button:hover:not(:disabled),
+.account-action-row-single:hover:not(:disabled) {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.account-action-row button:disabled,
+.account-action-row-single:disabled {
+  opacity: 0.5;
+}
+.account-divider {
+  text-align: center;
+  color: var(--muted-fg);
+  font-size: 11px;
+  position: relative;
+}
+.account-oauth-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account-oauth-btn {
+  text-align: left;
+  background: #1c1d21;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-left: 3px solid;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+.account-oauth-btn:hover:not(:disabled) {
+  background: #24252b;
+}
+.account-oauth-btn:disabled {
+  opacity: 0.5;
+}
+
+/* The menubar and the browser/list row below it share this same 2-column
+   template (a wide flexible left column, a fixed-width right column) so
+   the action-button cluster's left edge and the deck-list panel's left
+   edge land on the exact same pixel — see .deck-main. */
+.deck-menubar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr var(--deck-list-w);
+  align-items: center;
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+}
+.deck-menubar-left {
+  padding: 10px 0 10px 20px;
+}
+.deck-menubar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px 10px 0;
+}
+.deck-flash {
+  color: var(--gold-bright);
+  font-size: 12px;
+  font-weight: 600;
+}
+.deck-menubar button {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.deck-menubar button:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.deck-open-wrap {
+  position: relative;
+}
+.deck-open-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.deck-open-empty {
+  color: var(--muted-fg);
+  font-size: 12px;
+  padding: 10px;
+}
+.deck-open-section-label {
+  color: var(--muted-fg);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 10px 2px;
+}
+.deck-open-section-label:first-child {
+  padding-top: 2px;
+}
+.deck-open-item {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.deck-open-panel .deck-open-item-name {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--sidebar-fg);
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  min-width: 0;
+}
+.deck-open-panel .deck-open-item-name:hover {
+  background: rgba(232, 201, 119, 0.12);
+}
+.deck-open-panel .deck-open-item-delete {
+  flex: 0 0 auto;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--muted-fg);
+  border-radius: 5px;
+  font-size: 16px;
+  line-height: 1;
+}
+.deck-open-panel .deck-open-item-delete:hover {
+  background: rgba(224, 122, 110, 0.15);
+  color: #e07a6e;
+}
+.deck-open-item-affinity {
+  color: var(--muted-fg);
+  font-size: 11px;
+}
+
+.deck-main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr var(--deck-list-w);
+  min-height: 0;
+}
+
+/* -- Left: card browser -- */
+.deck-browser {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px 20px;
+  overflow: hidden;
+}
+.deck-browser-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.deck-filter-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.deck-filter-tab {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.deck-filter-tab:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.deck-filter-tab.active {
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  font-weight: 700;
+  border-color: transparent;
+}
+.deck-advanced-wrap {
+  position: relative;
+  margin-left: auto;
+}
+.deck-advanced-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 240px;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.deck-advanced-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-fg);
+  margin-bottom: 8px;
+}
+.deck-advanced-rarities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.deck-rarity-chip {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.deck-rarity-chip.active {
+  background: rgba(232, 201, 119, 0.18);
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.deck-affinity-filters {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.deck-affinity-chip {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: #26272c;
+  border: 2px solid var(--sidebar-border);
+  overflow: hidden;
+  opacity: 0.85;
+  transition: opacity 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+.deck-affinity-chip img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.deck-affinity-chip:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+.deck-affinity-chip.active {
+  opacity: 1;
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 0 2px rgba(232, 201, 119, 0.35);
+}
+.deck-affinity-chip.unavailable {
+  opacity: 0.25;
+}
+.deck-affinity-chip.unavailable:hover {
+  opacity: 0.35;
+  transform: none;
+}
+
+.deck-browser-hint {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted-fg);
+  margin-bottom: 10px;
+}
+
+.deck-browser-grid {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 0;
+  /* The scrolling content lives in the nested .deck-browser-grid-scroll —
+     ZoneCorners needs a non-scrolling positioned ancestor, otherwise the
+     brackets would scroll away with the cards instead of staying framed to
+     the panel. */
+  overflow: hidden;
+  padding: 14px;
+  /* Neutral gray play surface, restyled as an inset vignette: a darker band
+     right at each edge that fades quickly (within ~12% of the panel) into
+     the lighter fill color, plus a faint grain texture on top so the panel
+     doesn't read as a flat sheet of color. Four edge gradients (rather than
+     one radial) keep the dark band an even width along every side of this
+     rectangular panel instead of pooling into an oval in the middle. Each
+     edge fade uses extra intermediate stops (not a plain 2-stop
+     dark-to-transparent) — a hard linear taper has a sharp corner where it
+     hits transparent, which the eye reads as a faint bright ring right at
+     the 12% mark (Mach-band effect); easing the last stretch of the fade
+     removes that visible seam. The grain is real feTurbulence noise (an
+     inline SVG filter), not a repeating pattern — a repeating-gradient
+     texture reads as diagonal stripes at this scale, not grain. */
+  background-color: #5c5d61;
+  background-image:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%25" height="100%25" filter="url(%23g)" opacity="0.05"/></svg>'),
+    linear-gradient(to bottom, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%),
+    linear-gradient(to top, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%),
+    linear-gradient(to right, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%),
+    linear-gradient(to left, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%);
+  border-radius: 10px;
+}
+.deck-browser-grid-scroll {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 16px;
+  /* Extra clearance so the top/bottom card rows don't visually bump into
+     the gold corner brackets (.zone-corners sits closer to the panel edge
+     than the base 14px panel padding accounts for once cards get large). */
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow: auto;
+}
+/* Nexus Lords get a fixed 3-across grid instead of flex-wrap — combined
+   with the affinity-grouped sort order in DeckCardBrowser, every affinity's
+   three Lords land together in their own row (Prismatic's one placeholder
+   just starts a short row of its own). */
+.deck-browser-grid-scroll.deck-browser-grid-lords {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  /* Tight column-gap keeps each affinity's three Lords reading as one
+     cluster; the taller row-gap still separates each affinity's row from
+     the next. */
+  gap: 28px 6px;
+  justify-content: start;
+}
+.deck-browser-empty {
+  color: var(--muted-fg);
+  padding: 40px;
+  width: 100%;
+  text-align: center;
+}
+.deck-browser-card-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.deck-browser-card {
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.deck-browser-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.deck-browser-card-capped {
+  cursor: default;
+  opacity: 0.45;
+}
+.deck-browser-card-capped:hover {
+  transform: none;
+  box-shadow: none;
+}
+.deck-browser-card-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* -- Nexus Lord flip card (deck builder browsing grid only — a real match
+   flips via actual game state, not a free-standing UI toggle) -- */
+.nl-flip-wrap {
+  position: relative;
+  perspective: 1600px;
+}
+.nl-flip-inner {
+  position: relative;
+  display: inline-block;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+.nl-flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.nl-flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.nl-flip-face-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotateY(180deg);
+}
+.nl-flip-btn {
+  position: absolute;
+  /* Dropped below and tucked further right than the affinity badge baked
+     into the art's top-right corner, so the two don't overlap. */
+  top: 22%;
+  right: 4%;
+  width: 10%;
+  aspect-ratio: 1;
+  min-width: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  padding: 0;
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  opacity: 0.7;
+}
+.nl-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+  transform: scale(1.1);
+}
+.nl-flip-btn svg {
+  width: 58%;
+  height: 58%;
+  color: #2a2a2a;
+}
+
+/* -- Right: deck list -- */
+.deck-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-left: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+}
+.deck-list-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.deck-name-input {
+  flex: 1 1 auto;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+}
+.deck-total-badge {
+  flex: 0 0 auto;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 7px;
+}
+.deck-total-badge.ok {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.deck-list-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px 24px;
+}
+/* Fully hidden scrollbars for the deck builder's two scrolling panels —
+   still scrollable (wheel/trackpad/drag), same pattern used for
+   .pile-column/.lord-column/.chants-column elsewhere on the board. */
+.deck-browser-grid-scroll,
+.deck-list-body {
+  scrollbar-width: none;
+}
+.deck-browser-grid-scroll::-webkit-scrollbar,
+.deck-list-body::-webkit-scrollbar {
+  display: none;
+}
+.deck-section {
+  margin-bottom: 18px;
+}
+.deck-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  color: var(--gold-bright);
+  letter-spacing: 0.2px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.deck-section-count {
+  font-size: 12px;
+  color: var(--muted-fg);
+  font-weight: 600;
+}
+.deck-section-count.ok {
+  color: var(--success);
+}
+.deck-section-empty {
+  color: var(--muted-fg);
+  font-size: 12px;
+  padding: 6px 2px;
+}
+.deck-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+}
+.deck-entry-count {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sidebar-fg);
+}
+.deck-entry-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d3d2d8;
+}
+.deck-entry-cost {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  /* Mimics the pearl-and-gold cost gem printed on the actual cards: a
+     glossy off-white circle (radial highlight, top-left light source) ringed
+     by a beveled gold border, rather than literally cropping the badge out
+     of each card image. */
+  border: 2px solid transparent;
+  background:
+    radial-gradient(circle at 35% 28%, #ffffff 0%, #efece3 45%, #cac6ba 100%) padding-box,
+    linear-gradient(165deg, var(--gold-bright), var(--gold)) border-box;
+  font-size: 11px;
+  font-weight: 800;
+  color: #202020;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.deck-entry-controls {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+.deck-entry-controls button {
+  width: 22px;
+  height: 22px;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 5px;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+.deck-entry-controls button:hover {
+  border-color: rgba(232, 201, 119, 0.5);
+}
+.deck-lord-row {
+  align-items: center;
+}
+.deck-lord-thumb {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 1px solid var(--sidebar-border);
+}
+/* Each entry's own affinity, as a small roundel next to its cost — tried a
+   color-fade treatment on the whole row first, but it didn't read well
+   across a full deck list; a plain icon is clearer. */
+.deck-entry-affinity-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.deck-entry-row {
+  cursor: default;
+}
+
+/* Pinned just left of the deck-list panel rather than at the cursor, so it
+   never covers the row you're actually hovering. pointer-events: none lets
+   the mouse pass straight through to whatever's underneath. */
+.deck-hover-preview {
+  position: fixed;
+  top: 90px;
+  right: calc(var(--deck-list-w) + 24px);
+  z-index: 3000;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.65));
+}
