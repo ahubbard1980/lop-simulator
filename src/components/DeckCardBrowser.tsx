@@ -20,18 +20,67 @@ import {
 import { getNexusLordTemplates } from '../data/cardPools';
 import { MAX_COPIES } from '../deck/validate';
 
+// 'all' is a browse-only aggregate (every spell + Leyline together) — it's
+// deliberately not part of DeckBuilderCategory, which also drives the deck
+// list's own section grouping where an "everything" bucket wouldn't make
+// sense.
+export type BrowseTab = DeckBuilderCategory | 'all';
+
 // Tab order as specified in the wireframe — deliberately not the same order
 // as the deck-list section order (DECK_SECTIONS), which groups Chants ahead
 // of Enchantments instead.
-const FILTER_TABS: DeckBuilderCategory[] = ['nexusLords', 'creatures', 'enchantments', 'chants', 'leylines'];
+const FILTER_TABS: BrowseTab[] = ['nexusLords', 'creatures', 'enchantments', 'chants', 'leylines', 'all'];
+const TAB_LABELS: Record<BrowseTab, string> = { ...CATEGORY_LABELS, all: 'All' };
 const RARITIES: Rarity[] = ['Common', 'Uncommon', 'Rare', 'Epic'];
+// Only one set printed so far — kept as its own list (like RARITIES) so a
+// future set just gets added here rather than needing to be derived.
+const SETS = ['Awakening'];
+
+type SortKey = 'name' | 'cost' | 'type' | 'affinity' | 'rarity' | 'power' | 'toughness' | 'set';
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'name', label: 'A-Z' },
+  { key: 'cost', label: 'Resonance Cost' },
+  { key: 'type', label: 'Type' },
+  { key: 'affinity', label: 'Affinity' },
+  { key: 'rarity', label: 'Rarity' },
+  { key: 'power', label: 'Power' },
+  { key: 'toughness', label: 'Toughness' },
+  { key: 'set', label: 'Set' },
+];
+const RARITY_ORDER: Record<Rarity, number> = { Common: 0, Uncommon: 1, Rare: 2, Epic: 3 };
+
+// Missing values (e.g. a Chant has no power/toughness) sort to the end
+// regardless of ascending/descending intent — there's no "right" numeric
+// stand-in for "doesn't apply", so undefined always loses to any real value.
+function compareBySort(a: CardTemplate, b: CardTemplate, key: SortKey): number {
+  switch (key) {
+    case 'name':
+      return a.name.localeCompare(b.name);
+    case 'cost':
+      return (a.cost ?? Infinity) - (b.cost ?? Infinity);
+    case 'type':
+      return a.type.localeCompare(b.type);
+    case 'affinity':
+      return AFFINITIES.indexOf(a.affinity) - AFFINITIES.indexOf(b.affinity);
+    case 'rarity':
+      return (a.rarity ? RARITY_ORDER[a.rarity] : Infinity) - (b.rarity ? RARITY_ORDER[b.rarity] : Infinity);
+    case 'power':
+      return (a.power ?? Infinity) - (b.power ?? Infinity);
+    case 'toughness':
+      return (a.toughness ?? Infinity) - (b.toughness ?? Infinity);
+    case 'set':
+      return (a.set ?? '').localeCompare(b.set ?? '');
+    default:
+      return 0;
+  }
+}
 
 interface DeckCardBrowserProps {
   affinity: Affinity | null;
   /** Locked-in second affinity for spells, or null if none locked yet. */
   splashAffinity: Affinity | null;
-  category: DeckBuilderCategory;
-  onCategoryChange: (c: DeckBuilderCategory) => void;
+  category: BrowseTab;
+  onCategoryChange: (c: BrowseTab) => void;
   search: string;
   copyCounts: Map<string, number>;
   onAddCard: (tmpl: CardTemplate) => void;
@@ -50,13 +99,24 @@ export function DeckCardBrowser({
 }: DeckCardBrowserProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [rarityFilter, setRarityFilter] = useState<Set<Rarity>>(new Set());
+  const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [affinityFilter, setAffinityFilter] = useState<Set<Affinity>>(new Set());
+  const [sortBy, setSortBy] = useState<SortKey>('cost');
 
   const toggleRarity = (r: Rarity) => {
     setRarityFilter((prev) => {
       const next = new Set(prev);
       if (next.has(r)) next.delete(r);
       else next.add(r);
+      return next;
+    });
+  };
+
+  const toggleSet = (s: string) => {
+    setSetFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
       return next;
     });
   };
@@ -80,8 +140,16 @@ export function DeckCardBrowser({
       return affinity ? getNexusLordTemplates(affinity) : AFFINITIES.flatMap((a) => getNexusLordTemplates(a));
     }
     if (!affinity) return [];
-    if (category === 'leylines') return getAllLeylines();
     const allowed = splashAffinity ? [affinity, splashAffinity] : AFFINITIES;
+    if (category === 'leylines') return getAllLeylines();
+    if (category === 'all') {
+      return [
+        ...getSpellPoolFiltered(allowed, 'creatures'),
+        ...getSpellPoolFiltered(allowed, 'enchantments'),
+        ...getSpellPoolFiltered(allowed, 'chants'),
+        ...getAllLeylines(),
+      ];
+    }
     return getSpellPoolFiltered(allowed, category);
   }, [affinity, splashAffinity, category]);
 
@@ -94,13 +162,14 @@ export function DeckCardBrowser({
     return pool
       .filter((c) => fuzzyMatch(search.trim(), c.name))
       .filter((c) => rarityFilter.size === 0 || (c.rarity && rarityFilter.has(c.rarity)))
+      .filter((c) => setFilter.size === 0 || (c.set && setFilter.has(c.set)))
       .filter((c) => affinityFilter.size === 0 || affinityFilter.has(c.affinity))
       .sort((a, b) =>
         category === 'nexusLords'
           ? AFFINITIES.indexOf(a.affinity) - AFFINITIES.indexOf(b.affinity) || a.name.localeCompare(b.name)
-          : (a.cost ?? 0) - (b.cost ?? 0) || a.name.localeCompare(b.name),
+          : compareBySort(a, b, sortBy) || a.name.localeCompare(b.name),
       );
-  }, [pool, search, rarityFilter, affinityFilter, category]);
+  }, [pool, search, rarityFilter, setFilter, affinityFilter, category, sortBy]);
 
   const spellHint =
     category !== 'nexusLords' && category !== 'leylines' && affinity
@@ -119,31 +188,55 @@ export function DeckCardBrowser({
               className={`deck-filter-tab${tab === category ? ' active' : ''}`}
               onClick={() => onCategoryChange(tab)}
             >
-              {CATEGORY_LABELS[tab]}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
-        <div className="deck-advanced-wrap">
-          <button className={`deck-filter-tab${advancedOpen ? ' active' : ''}`} onClick={() => setAdvancedOpen((v) => !v)}>
-            Advanced Filters
-          </button>
-          {advancedOpen && (
-            <div className="deck-advanced-panel">
-              <div className="deck-advanced-title">Rarity</div>
-              <div className="deck-advanced-rarities">
-                {RARITIES.map((r) => (
-                  <button
-                    key={r}
-                    className={`deck-rarity-chip${rarityFilter.has(r) ? ' active' : ''}`}
-                    style={{ borderColor: RARITY_COLORS[r] }}
-                    onClick={() => toggleRarity(r)}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="deck-browser-toolbar-right">
+          {category !== 'nexusLords' && (
+            <select
+              className="deck-sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              title="Sort by"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  Sort: {opt.label}
+                </option>
+              ))}
+            </select>
           )}
+          <div className="deck-advanced-wrap">
+            <button className={`deck-filter-tab${advancedOpen ? ' active' : ''}`} onClick={() => setAdvancedOpen((v) => !v)}>
+              Advanced Filters
+            </button>
+            {advancedOpen && (
+              <div className="deck-advanced-panel">
+                <div className="deck-advanced-title">Rarity</div>
+                <div className="deck-advanced-rarities">
+                  {RARITIES.map((r) => (
+                    <button
+                      key={r}
+                      className={`deck-rarity-chip${rarityFilter.has(r) ? ' active' : ''}`}
+                      style={{ borderColor: RARITY_COLORS[r] }}
+                      onClick={() => toggleRarity(r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <div className="deck-advanced-title deck-advanced-title-spaced">Set</div>
+                <div className="deck-advanced-rarities">
+                  {SETS.map((s) => (
+                    <button key={s} className={`deck-set-chip${setFilter.has(s) ? ' active' : ''}`} onClick={() => toggleSet(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -3,11 +3,11 @@ import type { CardTemplate } from '../data/placeholderCards';
 import { emptyDeck } from '../deck/types';
 import type { Deck } from '../deck/types';
 import { validateDeck, MAX_COPIES } from '../deck/validate';
-import { cardKey, getSplashAffinity, getUniversalCardIndex, isBasicLeyline, type DeckBuilderCategory } from '../deck/cardPool';
+import { cardKey, getSplashAffinity, getUniversalCardIndex, isBasicLeyline } from '../deck/cardPool';
 import { listSavedDecks, saveDeck, deleteDeck, parseDeckText, downloadDeck } from '../deck/storage';
 import { listCloudDecks, saveCloudDeck, deleteCloudDeck } from '../net/cloudDecks';
 import { useAuthStore } from '../net/authStore';
-import { DeckCardBrowser } from './DeckCardBrowser';
+import { DeckCardBrowser, type BrowseTab } from './DeckCardBrowser';
 import { DeckList } from './DeckList';
 import { AccountMenu } from './AccountMenu';
 
@@ -17,7 +17,7 @@ interface DeckBuilderProps {
 
 export function DeckBuilder({ onClose }: DeckBuilderProps) {
   const [deck, setDeck] = useState<Deck>(emptyDeck());
-  const [category, setCategory] = useState<DeckBuilderCategory>('nexusLords');
+  const [category, setCategory] = useState<BrowseTab>('nexusLords');
   const [search, setSearch] = useState('');
   const [openMenuOpen, setOpenMenuOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

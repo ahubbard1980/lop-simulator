@@ -29,15 +29,32 @@ const INITIAL: Pick<MultiplayerState, 'roomId' | 'code' | 'mySeat' | 'isHost' | 
   unsubscribers: [],
 };
 
+// Bug this fixes: App.tsx's ?room=CODE rejoin effect re-runs on every fresh
+// mount of SetupScreen (its "have I already tried this" ref resets, since
+// it's a brand-new component instance each time Board unmounts). Leaving a
+// match remounts SetupScreen, so without clearing the param here, a
+// signed-in participant would be silently pulled right back into the same
+// room on every leave attempt — "won't let me exit the game".
+function clearRoomFromUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('room')) return;
+  url.searchParams.delete('room');
+  window.history.replaceState({}, '', url.toString());
+}
+
 export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
   ...INITIAL,
 
   setSession: (fields) => set(fields),
   addUnsubscriber: (fn) => set((s) => ({ unsubscribers: [...s.unsubscribers, fn] })),
-  reset: () => set(INITIAL),
+  reset: () => {
+    clearRoomFromUrl();
+    set(INITIAL);
+  },
 
   leaveNetGame: () => {
     get().unsubscribers.forEach((fn) => fn());
+    clearRoomFromUrl();
     set(INITIAL);
     useGameStore.getState().leaveGame();
   },

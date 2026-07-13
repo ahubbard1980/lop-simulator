@@ -1716,9 +1716,22 @@ button {
   font-weight: 700;
   border-color: transparent;
 }
+.deck-browser-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.deck-sort-select {
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
 .deck-advanced-wrap {
   position: relative;
-  margin-left: auto;
 }
 .deck-advanced-panel {
   position: absolute;
@@ -1739,12 +1752,16 @@ button {
   color: var(--muted-fg);
   margin-bottom: 8px;
 }
+.deck-advanced-title-spaced {
+  margin-top: 12px;
+}
 .deck-advanced-rarities {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.deck-rarity-chip {
+.deck-rarity-chip,
+.deck-set-chip {
   background: #26272c;
   color: var(--sidebar-fg);
   border: 1px solid var(--sidebar-border);
@@ -1752,7 +1769,8 @@ button {
   padding: 5px 10px;
   font-size: 12px;
 }
-.deck-rarity-chip.active {
+.deck-rarity-chip.active,
+.deck-set-chip.active {
   background: rgba(232, 201, 119, 0.18);
   border-width: 2px;
   font-weight: 600;
