@@ -11,6 +11,9 @@ interface LeylineRowProps {
   cards: CardInstance[];
   viewer: PlayerId;
   isOpponent?: boolean;
+  /** Leylines that would be auto-exhausted if the card currently being
+   * dragged were dropped right now — see Board.tsx. */
+  pendingPaymentLeylineIds?: Set<string>;
 }
 
 // Same-named leylines are grouped together first (so duplicates always sit
@@ -26,7 +29,7 @@ interface LeylineRowProps {
 // before useFitScale starts shrinking it to fit.
 const STACK_CAP = 2;
 
-export function LeylineRow({ player, cards, viewer, isOpponent }: LeylineRowProps) {
+export function LeylineRow({ player, cards, viewer, isOpponent, pendingPaymentLeylineIds }: LeylineRowProps) {
   const dispatch = useGameStore((s) => s.dispatch);
 
   const sorted = cards.slice().sort((a, b) => a.zoneIndex - b.zoneIndex);
@@ -76,7 +79,7 @@ export function LeylineRow({ player, cards, viewer, isOpponent }: LeylineRowProp
                   card={card}
                   size="md"
                   flipped180={isOpponent}
-                  className="leyline-card"
+                  className={`leyline-card${pendingPaymentLeylineIds?.has(card.id) ? ' leyline-pending-payment' : ''}`}
                   style={{ position: 'absolute', left: i * 41, top: i * 16, zIndex: i }}
                   onClick={toggleTap(card)}
                   viewer={viewer}

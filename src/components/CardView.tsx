@@ -25,6 +25,20 @@ export function getCardDims(size: CardSize, scale = 1): { w: number; h: number }
   return { w: base.w * scale, h: base.h * scale };
 }
 
+// +1/+1 and -1/-1 (and any other N/N stat counter) scale with the stack
+// count instead of showing "how many of this counter" separately — three
+// +1/+1 counters reads as "+3/+3", not "+1/+1 3". Anything that isn't a
+// signed-N/signed-N pair (a plain named counter added via "Add counter…")
+// falls back to the old "name value" display.
+function formatCounter(key: string, value: number): string {
+  const match = key.match(/^([+-]\d+)\/([+-]\d+)$/);
+  if (!match) return `${key} ${value}`;
+  const power = parseInt(match[1], 10) * value;
+  const toughness = parseInt(match[2], 10) * value;
+  const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+  return `${fmt(power)}/${fmt(toughness)}`;
+}
+
 // The 6px/3px (top/bottom) black photo-border, 5px corner radius, and 3px/
 // 6px-radius Nexus Lord frame were all tuned by eye at specific reference
 // sizes: regular cards at 'md' (115px, the size used almost everywhere in
@@ -147,7 +161,7 @@ export const CardView = forwardRef<HTMLDivElement, CardViewProps>(function CardV
       {showCounters && Object.keys(card.counters).length > 0 && (
         <div className="card-counters">
           {Object.entries(card.counters).map(([k, v]) => (
-            <span key={k} className="card-counter-badge">{k} {v}</span>
+            <span key={k} className="card-counter-badge">{formatCounter(k, v)}</span>
           ))}
         </div>
       )}

@@ -64,16 +64,57 @@ export function reduce(state: GameState, action: Action): GameState {
             card.exhausted = true;
           }
           if (action.toZone === 'leylineRow') {
-            card.exhausted = false;
+            // Most Leylines enter ready; some print "This enters the field
+            // exhausted." (entersReady: false on the template). Those can't
+            // be auto-tapped or counted toward a spell's cost this same
+            // turn — resonanceLocked marks that until it becomes ready
+            // again (see TAP_CARD/READY_ALL/NEW_TURN below).
+            card.exhausted = card.entersReady === false;
+            card.resonanceLocked = card.entersReady === false;
           }
         }
         pushLog(draft, action.player, `${playerName(draft, action.player)} moves ${card.name} to ${zoneLabel(action.toZone)}`);
+        // Auto-pay: casting a spell (moving it from hand to field/chants)
+        // exhausts enough Leylines to cover its cost, counting any the
+        // player already exhausted beforehand toward that cost first.
+        if (fromZone === 'hand' && (action.toZone === 'field' || action.toZone === 'chants') && typeof card.cost === 'number' && card.cost > 0) {
+          const payer = action.toZone === 'chants' ? card.owner : action.toOwner;
+          const leylines = cardsInZone(draft, payer, 'leylineRow');
+          // A Leyline that entered exhausted this turn (resonanceLocked)
+          // hasn't legitimately produced any Resonance yet — it doesn't
+          // count toward what's "already paid".
+          const alreadyExhausted = leylines.filter((c) => c.exhausted && !c.resonanceLocked).length;
+          const shortfall = Math.max(0, card.cost - alreadyExhausted);
+          // Basic Leylines (no rarity emblem — just plain "Channel 1", no
+          // bespoke ability) get tapped before non-basic ones, which print
+          // an activated ability the player might still want to use
+          // manually later this turn. `.sort` is stable, so this only
+          // reorders across the basic/non-basic split — zoneIndex order
+          // (from cardsInZone above) is preserved within each group.
+          const untapped = leylines.filter((c) => !c.exhausted);
+          untapped.sort((a, b) => (a.rarity ? 1 : 0) - (b.rarity ? 1 : 0));
+          const toTap = untapped.slice(0, shortfall);
+          toTap.forEach((c) => {
+            draft.cards[c.id].exhausted = true;
+          });
+          if (toTap.length > 0 || alreadyExhausted > 0) {
+            pushLog(
+              draft,
+              action.player,
+              `${playerName(draft, payer)} pays for ${card.name}: ${alreadyExhausted} already exhausted, ${toTap.length} more tapped (cost ${card.cost})`,
+            );
+          }
+        }
         break;
       }
       case 'TAP_CARD': {
         const card = draft.cards[action.cardId];
         if (!card) return;
         card.exhausted = action.exhausted;
+        // Readying (by any means) clears the "entered exhausted" lock —
+        // once it's genuinely ready again, tapping it back down is real
+        // Resonance, not the free entry-tap.
+        if (!action.exhausted) card.resonanceLocked = false;
         pushLog(draft, action.player, `${playerName(draft, action.player)} ${action.exhausted ? 'exhausts' : 'readies'} ${card.name}`);
         break;
       }
@@ -214,6 +255,11 @@ export function reduce(state: GameState, action: Action): GameState {
         pushLog(draft, action.player, `${playerName(draft, action.targetPlayer)} takes Initiative`);
         break;
       }
+      case 'PASS_ACTION': {
+        draft.actionHolder = draft.actionHolder === 'p1' ? 'p2' : 'p1';
+        pushLog(draft, action.player, `${playerName(draft, draft.actionHolder)} now has the Action`);
+        break;
+      }
       case 'CHAT': {
         pushLog(draft, action.player, action.text, 'chat');
         break;
@@ -224,7 +270,10 @@ export function reduce(state: GameState, action: Action): GameState {
       }
       case 'READY_ALL': {
         Object.values(draft.cards).forEach((card) => {
-          if (card.zone === 'field' || card.zone === 'leylineRow') card.exhausted = false;
+          if (card.zone === 'field' || card.zone === 'leylineRow') {
+            card.exhausted = false;
+            card.resonanceLocked = false;
+          }
         });
         pushLog(draft, action.player, `All permanents ready`);
         break;
@@ -232,8 +281,12 @@ export function reduce(state: GameState, action: Action): GameState {
       case 'NEW_TURN': {
         draft.turn = action.turn;
         draft.initiative = action.targetPlayer;
+        draft.actionHolder = action.targetPlayer;
         Object.values(draft.cards).forEach((card) => {
-          if (card.zone === 'field' || card.zone === 'leylineRow') card.exhausted = false;
+          if (card.zone === 'field' || card.zone === 'leylineRow') {
+            card.exhausted = false;
+            card.resonanceLocked = false;
+          }
         });
         pushLog(draft, action.player, `Turn ${action.turn} begins — ${playerName(draft, action.targetPlayer)} has Initiative, all permanents ready`);
         break;

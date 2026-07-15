@@ -45,6 +45,14 @@ export function buildCardMenuItems(card: CardInstance, viewer: PlayerId, dispatc
       onClick: () => dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: '+1/+1', delta: -1 }),
     },
     {
+      label: 'Add -1/-1 counter',
+      onClick: () => dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: '-1/-1', delta: 1 }),
+    },
+    {
+      label: 'Remove -1/-1 counter',
+      onClick: () => dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: '-1/-1', delta: -1 }),
+    },
+    {
       label: 'Make a token…',
       separatorBefore: true,
       onClick: () => useUIStore.getState().openTokenPicker(card.owner),

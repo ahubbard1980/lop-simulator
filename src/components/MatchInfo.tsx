@@ -11,17 +11,9 @@ export function MatchInfo() {
   if (!state) return null;
 
   const initiativeName = state.players[state.initiative]?.name;
-  const nextInitiative = state.initiative === 'p1' ? 'p2' : 'p1';
 
   return (
     <div className="match-info">
-      <button
-        className="new-turn-btn"
-        title="Advance the turn, hand Initiative to the other player, and ready all permanents"
-        onClick={() => dispatch({ type: 'NEW_TURN', player: activeViewer, turn: state.turn + 1, targetPlayer: nextInitiative })}
-      >
-        New Turn ▸
-      </button>
       <div className="match-info-row">
         <span>Room: {mySeat ? roomCode : 'LOCAL'}</span>
         <span className="turn-control">

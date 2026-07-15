@@ -42,6 +42,7 @@ function makeCard(owner: PlayerId, zone: ZoneName, zoneIndex: number, tmpl: Card
     imageUrl: tmpl.imageUrl,
     backImageUrl: tmpl.backImageUrl,
     backRulesText: tmpl.backRulesText,
+    entersReady: tmpl.entersReady,
     owner,
     zone,
     position: { x: 50, y: 50 },
@@ -170,6 +171,7 @@ export function buildInitialStateFromCardLists(opts: {
     cards,
     turn: 1,
     initiative: 'p1',
+    actionHolder: 'p1',
     log: [
       {
         id: 'log_start',
@@ -207,6 +209,7 @@ export function buildInitialState(opts: { p1Name: string; p1Affinity: Affinity; 
     cards,
     turn: 1,
     initiative: 'p1',
+    actionHolder: 'p1',
     log: [
       {
         id: 'log_start',
@@ -246,6 +249,7 @@ export function buildGoldfishStateFromDeck(opts: {
     cards,
     turn: 1,
     initiative: 'p1',
+    actionHolder: 'p1',
     log: [
       {
         id: 'log_start',

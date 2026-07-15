@@ -49,6 +49,10 @@ export interface CardInstance {
   imageUrl?: string;
   backImageUrl?: string;
   backRulesText?: string;
+  /** From CardTemplate — whether this permanent enters play ready (true) or
+   * exhausted (false). Undefined defaults to ready, same as before this
+   * field existed. Only meaningful for Leylines/creatures on entry. */
+  entersReady?: boolean;
 
   owner: PlayerId;
   zone: ZoneName;
@@ -65,6 +69,13 @@ export interface CardInstance {
   attachedTo?: string;
   /** For Nexus Lords / dual-face cards. */
   isFlipped: boolean;
+  /** Set true only when a Leyline enters the row already exhausted
+   * (`entersReady: false` on its template) — it can't be auto-tapped or
+   * counted toward a spell's cost that turn, since it hasn't legitimately
+   * produced any Resonance yet. Cleared the moment it becomes ready again
+   * (manually, via Ready All, or at New Turn), same as real cost-payment
+   * eligibility. Runtime-only; never comes from CardTemplate. */
+  resonanceLocked?: boolean;
 
   counters: Record<string, number>;
 }
@@ -90,6 +101,11 @@ export interface GameState {
   cards: Record<string, CardInstance>;
   turn: number;
   initiative: PlayerId;
+  /** Manual, player-driven turn-structure flag — who currently "has the
+   * action". The engine has no concept of Actions/Interrupts and doesn't
+   * gate this in any way; either player can pass it at any time via the
+   * Pass Action button. Purely advisory bookkeeping, like `initiative`. */
+  actionHolder: PlayerId;
   log: LogEntry[];
   mode: 'goldfish' | 'hotseat';
   rngState: number;

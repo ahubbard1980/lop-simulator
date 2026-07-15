@@ -10,9 +10,9 @@ See `GAME_REFERENCE.md` in this folder for game terminology and the behaviors th
 - **Phase 2 (done): Deck builder.** Build/edit/save decks in-app, browsing real imported card art rather than uploading a prepared card database — see "Deviations from this spec" below.
 - **Phase 3 (done): Online multiplayer.** Room-code matches — built on Supabase Realtime instead of raw websockets, see below.
 
-## Status (2026-07-12)
+## Status (2026-07-13)
 
-**All three phases are built and playable.** Goldfish (random or your own saved deck) works end-to-end; the in-browser deck builder replaces the originally-planned JSON+decklist importer entirely (decks are built by browsing real card art directly in the app); and a new "Online" mode plays a real match against another signed-in player over a shareable room code. Local Hotseat has been removed — Online now covers real two-player play.
+**All three phases are built and playable, and the app is live at [play.leylinesofpower.com](https://play.leylinesofpower.com)** (Vercel, see `DEPLOYMENT.md`). Goldfish (random or your own saved deck) works end-to-end; the in-browser deck builder replaces the originally-planned JSON+decklist importer entirely (decks are built by browsing real card art directly in the app); and a new "Online" mode plays a real match against another signed-in player over a shareable room code. Local Hotseat has been removed — Online now covers real two-player play.
 
 ### Done
 - Event-sourced action log + reducer, undo/redo, seeded-RNG shuffles.
@@ -25,7 +25,7 @@ See `GAME_REFERENCE.md` in this folder for game terminology and the behaviors th
 - Visual pass: neutral gray play surface with a subtle gradient, gold accents, gold corner-bracket framing on the Field and Leyline Row, custom SVG button-bar icons.
 - **Real card art imported** for Chaos, Corruption, Primal, Arcane, and Divinity (full spell pools, Leylines, and 3 Nexus Lords each) and for Prismatic spells (no Nexus Lord for Prismatic yet — see Not started). Cropped from print sheets via a repeatable PowerShell pipeline (`scripts/process-*.ps1`, run once per batch then deleted).
 - **Deck Builder** (`src/deck/`, `src/components/DeckBuilder.tsx` + friends), replacing the Phase 2 importer entirely:
-  - Fuzzy-search card browser with affinity filter chips and a rarity filter, styled to match the board's gray gradient play surface and gold corner-bracket framing.
+  - Fuzzy-search card browser with affinity filter chips (including an "All" tab), a rarity filter, a Set filter, and a sort control, styled to match the board's gray gradient play surface and gold corner-bracket framing.
   - **Splash-affinity rule**: a deck's spells may span the Nexus Lord's primary affinity plus at most one splash affinity, auto-locked in by whichever off-primary spell is added first and released once every card of that affinity is removed. Leylines are exempt — any affinity, unrestricted. Enforced in `src/deck/validate.ts`.
   - Nexus Lords are flip-able in the browser (3D CSS flip animation) to check both faces before picking one, mirroring in-game Ascend.
   - Deck list panel: per-category sections (Nexus Lord/Creatures/Chants/Enchantments/Leylines) with counts, +/− controls, hover-to-preview full card art, and an affinity-icon badge per row.
@@ -37,6 +37,8 @@ See `GAME_REFERENCE.md` in this folder for game terminology and the behaviors th
   - **Optimistic dispatch**: moves apply locally immediately (this app is drag-and-drop-heavy, not turn-gated clicks) and reconcile against the confirmed server order as it arrives — see `netMode`/`confirmedLog`/`pendingActions` in `src/engine/store.ts`. `engine/` still has zero knowledge of Supabase or the `Deck` type; it only ever receives already-resolved `CardTemplate` lists (`src/deck/instantiate.ts` does that expansion).
   - Undo/Redo/Restart are hidden in online matches (undoing against a shared authoritative log isn't meaningful).
   - **Known v1 limitations** (see also `SUPABASE_SETUP.md`): no opponent-disconnect indicator, no end-of-match/rematch flow (`GameState` has no `winner` field — "play again" means a new room code), no room cleanup/TTL, no spectators (by design — `room_actions` reads are scoped to the two seated participants only), and no server-side move legality/turn enforcement beyond binding an inserted action's claimed seat to the actual authenticated user.
+- **Performance pass**: all card art converted to WebP with lazy loading, cutting initial load weight now that five affinities' worth of full spell pools ship in the bundle.
+- **Deployed to production**: static Vercel build, custom subdomain (`play.leylinesofpower.com`) via a GoDaddy CNAME, Supabase Auth redirect URLs updated to match. See `DEPLOYMENT.md`.
 
 ### Deviations from this spec
 - **Field is flexbox, not free-positioned.** §3 called for free 2D positioning ("attackers forward"); in practice the Field row is often short on vertical space, and free positioning kept producing overlapping/uneven layouts no matter how the collision-avoidance math was tuned. It now lays out left-to-right in play order, same mechanism as the Leyline Row, just with a wider gap.

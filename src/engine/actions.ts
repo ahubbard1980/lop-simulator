@@ -28,6 +28,7 @@ export type Action = BaseAction &
     | { type: 'CREATE_TOKEN'; targetPlayer: PlayerId; name: string; cardType: CardType; power?: number; toughness?: number; zone: ZoneName; position?: { x: number; y: number }; affinity?: string; imageUrl?: string; rulesText?: string }
     | { type: 'SET_TURN'; turn: number }
     | { type: 'SET_INITIATIVE'; targetPlayer: PlayerId }
+    | { type: 'PASS_ACTION' }
     | { type: 'CHAT'; text: string }
     | { type: 'SETUP_GAME'; mode: 'goldfish' | 'hotseat'; seed: number }
     | { type: 'READY_ALL' }

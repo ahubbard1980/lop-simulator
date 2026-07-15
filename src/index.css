@@ -378,6 +378,22 @@ button {
   grid-template-columns: 250px minmax(0, 1fr) 190px;
   grid-template-areas: "lord main pile";
 }
+/* Two independent board-side indicators, both gold but different in feel
+   so they still read as separate signals even when they point at different
+   players at once (Initiative belongs to whoever started the turn; the
+   Action may have already passed via the manual Pass Action button).
+   Initiative is a crisp defined ring; Action is a soft diffuse ambient glow
+   with no hard edge. Both are purely advisory UI, not enforced by
+   anything. */
+.player-area.has-initiative {
+  box-shadow: inset 0 0 0 2px var(--gold-bright), inset 0 0 32px rgba(232, 201, 119, 0.12);
+}
+.player-area.has-action {
+  box-shadow: inset 0 0 26px 6px rgba(232, 201, 119, 0.4);
+}
+.player-area.has-initiative.has-action {
+  box-shadow: inset 0 0 0 2px var(--gold-bright), inset 0 0 36px 8px rgba(232, 201, 119, 0.4);
+}
 
 .pile-column {
   grid-area: pile;
@@ -578,6 +594,20 @@ button {
 .leyline-stack {
   position: relative;
   height: 161px;
+}
+/* Live preview while a spell is being dragged (not yet dropped) — which
+   Leylines would be auto-exhausted to pay for it. Pulses so it clearly
+   reads as "pending, not committed" rather than a static selection. */
+.leyline-pending-payment .card-face {
+  animation: leyline-pending-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes leyline-pending-pulse {
+  from {
+    box-shadow: 0 0 0 3px var(--gold-bright), 0 0 10px 2px rgba(232, 201, 119, 0.5);
+  }
+  to {
+    box-shadow: 0 0 0 3px var(--gold-bright), 0 0 18px 6px rgba(232, 201, 119, 0.85);
+  }
 }
 
 .hand-row {
@@ -817,23 +847,28 @@ button {
   margin-top: 2px;
 }
 
+/* Sits over the card's own rules-text box (the lower portion of the
+   printed art, roughly the bottom quarter of the card) instead of poking
+   out below the card's edge like before. */
 .card-counters {
   position: absolute;
-  bottom: -6px;
-  left: 2px;
+  bottom: 16%;
+  left: 4px;
+  z-index: 5;
   display: flex;
-  gap: 2px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .card-counter-badge {
   background: linear-gradient(165deg, var(--gold-bright), var(--gold));
   color: #241f1a;
-  font-size: 8px;
-  font-weight: 700;
-  padding: 1px 4px;
-  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 10px;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid #2e2412;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
 }
 
 .attached-sigil {
@@ -933,6 +968,29 @@ button {
   gap: 2px;
   padding: 6px 14px;
   margin-top: 6px;
+}
+/* Always rendered on both sides (no layout shift as the Action passes back
+   and forth) — only the lit/muted state changes. Same gold-gradient
+   language as .new-turn-btn for the active state; muted/quiet otherwise. */
+.pass-action-btn {
+  margin-top: 6px;
+  padding: 11px 14px;
+  background: #26272c;
+  color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.pass-action-btn-active {
+  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
+  color: #241f1a;
+  border-color: transparent;
+  opacity: 1;
+  box-shadow: 0 0 12px rgba(232, 201, 119, 0.5);
 }
 .counter-row {
   display: flex;
@@ -1254,6 +1312,7 @@ button {
 .new-turn-btn {
   width: 100%;
   padding: 11px;
+  margin-top: 8px;
   margin-bottom: 6px;
   background: linear-gradient(165deg, var(--gold-bright), var(--gold));
   color: #241f1a;

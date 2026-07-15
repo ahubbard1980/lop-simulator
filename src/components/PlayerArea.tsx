@@ -11,9 +11,12 @@ import { NexusLordPanel } from './NexusLordPanel';
 interface PlayerAreaProps {
   player: PlayerId;
   isOpponent: boolean;
+  /** Leyline ids that would be auto-exhausted to pay for the card currently
+   * being dragged, if dropped right now — see Board.tsx. */
+  pendingPaymentLeylineIds?: Set<string>;
 }
 
-export function PlayerArea({ player, isOpponent }: PlayerAreaProps) {
+export function PlayerArea({ player, isOpponent, pendingPaymentLeylineIds }: PlayerAreaProps) {
   const state = useGameStore((s) => s.state);
   const activeViewer = useUIStore((s) => s.activeViewer);
   const cards = useMemo(() => (state ? Object.values(state.cards).filter((c) => c.owner === player) : []), [state, player]);
@@ -29,8 +32,17 @@ export function PlayerArea({ player, isOpponent }: PlayerAreaProps) {
   // is always "you".
   const faceUp = state.mode === 'goldfish' ? player === 'p1' : player === activeViewer;
 
+  // Two independent, simultaneously-visible flags — they can point at
+  // different players at once (Initiative belongs to whoever started the
+  // turn; the Action may have already passed via the manual Pass Action
+  // button), so they get visually distinct treatments rather than sharing
+  // one highlight class.
+  const hasInitiative = state.initiative === player;
+  const hasAction = state.actionHolder === player;
+  const highlightClass = `${hasInitiative ? ' has-initiative' : ''}${hasAction ? ' has-action' : ''}`;
+
   return (
-    <div className={`player-area${isOpponent ? ' player-area-opponent' : ''}`}>
+    <div className={`player-area${isOpponent ? ' player-area-opponent' : ''}${highlightClass}`}>
       <div className="pile-column">
         <PileZone player={player} zone="deck" cards={byZone('deck')} viewer={activeViewer} label="Deck" isOpponent={isOpponent} />
         <PileZone player={player} zone="dustrealm" cards={byZone('dustrealm')} viewer={activeViewer} label="Dustrealm" isOpponent={isOpponent} />
@@ -42,7 +54,13 @@ export function PlayerArea({ player, isOpponent }: PlayerAreaProps) {
           <FieldZone player={player} cards={byZone('field')} viewer={activeViewer} isOpponent={isOpponent} />
         </div>
         <div className="leyline-row-wrap">
-          <LeylineRow player={player} cards={byZone('leylineRow')} viewer={activeViewer} isOpponent={isOpponent} />
+          <LeylineRow
+            player={player}
+            cards={byZone('leylineRow')}
+            viewer={activeViewer}
+            isOpponent={isOpponent}
+            pendingPaymentLeylineIds={pendingPaymentLeylineIds}
+          />
         </div>
         <div className="hand-row">
           <Hand player={player} cards={byZone('hand')} faceUp={faceUp} viewer={activeViewer} isOpponent={isOpponent} />

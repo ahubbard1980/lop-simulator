@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { useGameStore } from '../engine/store';
@@ -20,6 +20,11 @@ import type { GameState, PlayerId } from '../engine/types';
 // otherwise useSensor/useSensors produce a new array every render, which
 // makes dnd-kit tear down and re-attach its active sensor mid-drag.
 const POINTER_ACTIVATION_CONSTRAINT = { distance: 4 };
+
+// Referentially stable empty set so the pending-payment useMemo below
+// doesn't hand out a new object identity on every render when there's
+// nothing to preview.
+const EMPTY_LEYLINE_ID_SET = new Set<string>();
 
 // By default dnd-kit keeps whatever offset existed between the cursor and
 // the card at the moment you grabbed it — e.g. grab the card's bottom-left
@@ -149,11 +154,38 @@ export function Board() {
     dispatch({ type: 'MOVE_CARD', player: activeViewer, cardId, toZone, toOwner });
   }, [dispatch]);
 
+  const activeCard = activeDrag && state ? state.cards[activeDrag.cardId] : null;
+
+  // Live preview of which Leylines would be auto-exhausted to pay for the
+  // card currently being dragged, if dropped right now — same selection
+  // logic as the reducer's actual on-drop payment (see reducer.ts's
+  // MOVE_CARD case), computed here read-only against plain state instead of
+  // an immer draft. Must run unconditionally (before the `!state` early
+  // return below) since it's a hook.
+  const pendingPaymentLeylineIds = useMemo(() => {
+    if (!state || !activeCard || activeCard.zone !== 'hand' || typeof activeCard.cost !== 'number' || activeCard.cost <= 0) {
+      return EMPTY_LEYLINE_ID_SET;
+    }
+    const leylines = Object.values(state.cards)
+      .filter((c) => c.owner === activeCard.owner && c.zone === 'leylineRow')
+      .sort((a, b) => a.zoneIndex - b.zoneIndex);
+    // A Leyline that entered exhausted this turn (resonanceLocked) hasn't
+    // legitimately produced any Resonance yet — mirrors the same exclusion
+    // in reducer.ts's MOVE_CARD payment logic.
+    const alreadyExhausted = leylines.filter((c) => c.exhausted && !c.resonanceLocked).length;
+    const shortfall = Math.max(0, activeCard.cost - alreadyExhausted);
+    // Basic Leylines (no rarity emblem) preview as the ones that would get
+    // tapped first — same priority as the reducer's actual payment logic,
+    // so the highlight never lies about what dropping would actually do.
+    const untapped = leylines.filter((c) => !c.exhausted);
+    untapped.sort((a, b) => (a.rarity ? 1 : 0) - (b.rarity ? 1 : 0));
+    return new Set(untapped.slice(0, shortfall).map((c) => c.id));
+  }, [state, activeCard]);
+
   if (!state) return null;
 
   const bottomPlayer: PlayerId = activeViewer;
   const topPlayer: PlayerId = activeViewer === 'p1' ? 'p2' : 'p1';
-  const activeCard = activeDrag ? state.cards[activeDrag.cardId] : null;
 
   return (
     <DndContext
@@ -169,11 +201,11 @@ export function Board() {
       <div className={`board-root${activeDrag ? ' dragging-active' : ''}`}>
         <div className="board-play-surface">
           <div className="board-half board-half-top">
-            <PlayerArea player={topPlayer} isOpponent />
+            <PlayerArea player={topPlayer} isOpponent pendingPaymentLeylineIds={pendingPaymentLeylineIds} />
           </div>
           <div className="board-divider" />
           <div className="board-half board-half-bottom">
-            <PlayerArea player={bottomPlayer} isOpponent={false} />
+            <PlayerArea player={bottomPlayer} isOpponent={false} pendingPaymentLeylineIds={pendingPaymentLeylineIds} />
           </div>
         </div>
         <ChantsZone viewer={activeViewer} />

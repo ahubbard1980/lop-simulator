@@ -1,8 +1,8 @@
 # Deploying to play.leylinesofpower.com
 
-This app is a static React/Vite build with no custom backend server (Supabase handles the only backend piece), so it deploys well to a free static host. This guide uses **Vercel**, connected to a **GitHub** repo, with the custom subdomain **play.leylinesofpower.com** pointed at it via your GoDaddy DNS.
+**Status: live.** This setup is complete — the app is deployed and serving at [play.leylinesofpower.com](https://play.leylinesofpower.com). Every push to `main` on GitHub triggers an automatic Vercel redeploy (see step 6). The rest of this doc is kept as a reference for how it's wired, and in case the project ever needs to be reproduced from scratch (e.g. a new Vercel project).
 
-The repo is already git-initialized locally with an initial commit. Everything below is a one-time setup.
+This app is a static React/Vite build with no custom backend server (Supabase handles the only backend piece), so it deploys well to a free static host. This guide uses **Vercel**, connected to a **GitHub** repo, with the custom subdomain **play.leylinesofpower.com** pointed at it via your GoDaddy DNS.
 
 ## 1. Push to GitHub
 

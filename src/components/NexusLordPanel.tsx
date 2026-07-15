@@ -15,6 +15,9 @@ interface NexusLordPanelProps {
 export function NexusLordPanel({ player, card, viewer }: NexusLordPanelProps) {
   const dispatch = useGameStore((s) => s.dispatch);
   const playerState = useGameStore((s) => s.state?.players[player]);
+  const hasAction = useGameStore((s) => s.state?.actionHolder === player);
+  const turn = useGameStore((s) => s.state?.turn);
+  const initiative = useGameStore((s) => s.state?.initiative);
   if (!playerState) return null;
 
   const adjust = (counter: 'health' | 'focus', delta: number) =>
@@ -41,6 +44,31 @@ export function NexusLordPanel({ player, card, viewer }: NexusLordPanelProps) {
         <Counter label="Health" value={playerState.health} onIncrement={() => adjust('health', 1)} onDecrement={() => adjust('health', -1)} onSetExact={(v) => setExact('health', v)} />
         <Counter label="Focus" value={playerState.focus} onIncrement={() => adjust('focus', 1)} onDecrement={() => adjust('focus', -1)} onSetExact={(v) => setExact('focus', v)} />
       </div>
+      <button
+        className={`pass-action-btn${hasAction ? ' pass-action-btn-active' : ''}`}
+        title="Pass the Action to the other player"
+        onClick={() => dispatch({ type: 'PASS_ACTION', player: viewer })}
+      >
+        Pass Action
+      </button>
+      {/* Global, not per-player — only shown on the viewer's own panel so it
+          doesn't render twice (once per mirrored side). */}
+      {player === viewer && turn !== undefined && initiative !== undefined && (
+        <button
+          className="new-turn-btn"
+          title="Advance the turn, hand Initiative to the other player, and ready all permanents"
+          onClick={() =>
+            dispatch({
+              type: 'NEW_TURN',
+              player: viewer,
+              turn: turn + 1,
+              targetPlayer: initiative === 'p1' ? 'p2' : 'p1',
+            })
+          }
+        >
+          New Turn ▸
+        </button>
+      )}
     </DroppableZone>
   );
 }
