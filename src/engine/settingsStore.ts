@@ -6,15 +6,15 @@ export interface Settings {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  topColor: '#6b6c70',
-  bottomColor: '#6b6c70',
+  topColor: '#1b212b',
+  bottomColor: '#1b212b',
 };
 
 // Bumped when the default palette changes so browsers holding an old saved
 // value (from before this palette existed) get the new defaults instead of
 // silently overriding the stylesheet forever — a plain reload doesn't clear
 // localStorage, so without this a stale color follows you across restarts.
-const STORAGE_KEY = 'lop-sim-settings-v2';
+const STORAGE_KEY = 'lop-sim-settings-v3';
 
 // Each play-area surface is rendered as a subtle two-stop gradient for depth;
 // derive the darker stop from whatever flat color the user picks.

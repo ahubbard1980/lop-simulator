@@ -14,8 +14,16 @@ export function buildCardMenuItems(card: CardInstance, viewer: PlayerId, dispatc
       onClick: () => dispatch({ ...base, type: 'MOVE_CARD', cardId: card.id, toZone: 'field', toOwner: card.owner }),
     },
     {
+      label: 'Move to hand',
+      onClick: () => dispatch({ ...base, type: 'MOVE_CARD', cardId: card.id, toZone: 'hand', toOwner: card.owner }),
+    },
+    {
       label: 'Put in Dustrealm',
       onClick: () => dispatch({ ...base, type: 'MOVE_CARD', cardId: card.id, toZone: 'dustrealm', toOwner: card.owner }),
+    },
+    {
+      label: 'Move to Banished',
+      onClick: () => dispatch({ ...base, type: 'MOVE_CARD', cardId: card.id, toZone: 'banished', toOwner: card.owner }),
     },
     {
       label: 'Reveal card',

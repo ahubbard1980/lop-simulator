@@ -9,13 +9,8 @@ import { listCloudDecks, saveCloudDeck, deleteCloudDeck } from '../net/cloudDeck
 import { useAuthStore } from '../net/authStore';
 import { DeckCardBrowser, type BrowseTab } from './DeckCardBrowser';
 import { DeckList } from './DeckList';
-import { AccountMenu } from './AccountMenu';
 
-interface DeckBuilderProps {
-  onClose: () => void;
-}
-
-export function DeckBuilder({ onClose }: DeckBuilderProps) {
+export function DeckBuilder() {
   const [deck, setDeck] = useState<Deck>(emptyDeck());
   const [category, setCategory] = useState<BrowseTab>('nexusLords');
   const [search, setSearch] = useState('');
@@ -169,11 +164,7 @@ export function DeckBuilder({ onClose }: DeckBuilderProps) {
   return (
     <div className="deck-builder">
       <div className="deck-topbar">
-        <button className="deck-logo" onClick={onClose} title="Back to menu">
-          <img src="/icons/lop-logo.png" alt="Leylines of Power" draggable={false} />
-        </button>
         <input className="deck-search" placeholder="Search cards…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <AccountMenu />
       </div>
 
       <div className="deck-menubar">

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useGameStore } from '../engine/store';
 import { useUIStore } from '../engine/uiStore';
-import { CardView } from './CardView';
+import { DraggableCard } from './DraggableCard';
 
 // A private look at the top X cards of a deck. Face-up regardless of the
 // card's real faceDown state since only the requesting viewer sees this.
@@ -29,7 +29,7 @@ export function PeekOverlay() {
         </div>
         <div className="zone-overlay-grid">
           {cards.map((card) => (
-            <CardView key={card.id} card={card} size="md" faceDown={false} />
+            <DraggableCard key={card.id} card={card} size="md" faceDown={false} viewer={peek.player} />
           ))}
         </div>
       </div>

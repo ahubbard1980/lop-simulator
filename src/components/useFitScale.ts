@@ -43,3 +43,46 @@ export function useFitScale<C extends HTMLElement = HTMLDivElement, R extends HT
 
   return { containerRef, contentRef, scale };
 }
+
+/**
+ * Vertical counterpart to `useFitScale` — shrinks a column of content (via
+ * CSS transform: scale) just enough to fit its container's height, instead
+ * of silently overflowing into a scrollable area with no visible scrollbar
+ * (e.g. the Nexus Lord panel's Pass Action/New Turn buttons getting pushed
+ * out of view on a shorter viewport with no hint that scrolling would reach
+ * them). Unlike `useFitScale`, there's no separate container element to
+ * attach a ref to here — the constraining box is the content node's own
+ * grandparent (e.g. `content` = the inner wrapper, `content.parentElement`
+ * = the DroppableZone's own div which has no height constraint of its own,
+ * `content.parentElement.parentElement` = `.lord-column`, the actual
+ * fixed-height grid cell) — so this measures via DOM traversal from the
+ * content node instead of a second ref.
+ */
+export function useFitScaleY<R extends HTMLElement = HTMLDivElement>(deps: unknown[]) {
+  const contentRef = useRef<R>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const container = content.parentElement?.parentElement; // .lord-column
+    if (!container) return;
+
+    const SAFETY = 0.98;
+
+    const recompute = () => {
+      const containerH = container.clientHeight;
+      const naturalH = content.scrollHeight;
+      setScale(containerH > 0 && naturalH > containerH ? (containerH / naturalH) * SAFETY : 1);
+    };
+
+    const observer = new ResizeObserver(recompute);
+    observer.observe(container);
+    observer.observe(content);
+    recompute();
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return { contentRef, scale };
+}

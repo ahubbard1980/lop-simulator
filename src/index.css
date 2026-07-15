@@ -1,10 +1,11 @@
 :root {
-  /* Neutral gray play surface, per the reference mockup — both halves share
-     the same tone, with the gold divider doing the work of separating them. */
-  --surface-top: #6b6c70;
-  --surface-top-2: #535457;
-  --surface-bottom: #6b6c70;
-  --surface-bottom-2: #535457;
+  /* Cool blue-gray play surface (matches the Deck Builder's card-browsing
+     panel) instead of the old neutral gray — both halves share the same
+     tone, with the gold divider doing the work of separating them. */
+  --surface-top: #1b212b;
+  --surface-top-2: #0e1116;
+  --surface-bottom: #1b212b;
+  --surface-bottom-2: #0e1116;
   --divider: #c9a94e;
 
   --app-bg: #131418;
@@ -14,8 +15,8 @@
   --sidebar-fg: #eceae4;
   --muted-fg: #9a9ba3;
 
-  --gold: #cda94f;
-  --gold-bright: #e8c977;
+  --gold: #b3873a;
+  --gold-bright: #d1a352;
   --ink: #16171a;
   --danger: #d1483c;
   --success: #4f9c6a;
@@ -44,24 +45,397 @@ button {
   cursor: pointer;
 }
 
-/* ---------- Setup screen ---------- */
-.setup-screen {
-  max-width: 520px;
-  margin: 8vh auto;
-  padding: 32px;
-  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
-  border: 1px solid var(--sidebar-border);
-  border-radius: 12px;
-  overflow-y: auto;
-  max-height: 84vh;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+/* ---------- Site header ----------
+   Mirrors LoP-Website's BaseLayout.astro header (see SiteHeader.tsx) so the
+   marketing site and this app read as one product. `.app-shell`/
+   `.app-content` turn the header into a real flex sibling of whatever
+   screen is showing (setup/deck-builder/board) rather than an overlay —
+   those screens already size themselves with `height: 100%`, so shrinking
+   `.app-content` to "100% minus the header" via flex is all they need to
+   keep fitting the viewport without their own code knowing the header
+   exists. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
-.setup-screen h1 {
-  font-size: 23px;
+.app-content {
+  flex: 1;
+  min-height: 0;
+}
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(201, 169, 78, 0.25);
+  flex-shrink: 0;
+}
+.site-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
   font-weight: 700;
-  letter-spacing: 0.2px;
-  margin: 0 0 12px;
+  font-size: 15px;
+  letter-spacing: 0.5px;
   color: var(--gold-bright);
+}
+.site-header .brand img {
+  display: block;
+  height: 32px;
+  width: 32px;
+  object-fit: contain;
+}
+.site-header .site-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.site-header .nav-link {
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sidebar-fg);
+  opacity: 0.8;
+}
+.site-header .nav-link:hover {
+  opacity: 1;
+  color: var(--gold-bright);
+}
+/* Same "aged-gold plaque" button as the website's .btn-gold (identical
+   --gold/--gold-bright values, so it reads as the same button) — the base
+   rule here matches the website's own full-size .btn-gold exactly; the
+   `.site-header` override below only changes the few properties that
+   differ for a compact header (padding/font-size/shadow), same as the
+   website's own .play-link modifier does. */
+.btn-gold {
+  position: relative;
+  display: inline-block;
+  background-image:
+    radial-gradient(ellipse 55% 70% at 22% 18%, rgba(255, 255, 255, 0.32), transparent 60%),
+    radial-gradient(ellipse 60% 70% at 78% 82%, rgba(120, 88, 30, 0.35), transparent 65%),
+    radial-gradient(ellipse 65% 80% at 55% 45%, rgba(255, 232, 170, 0.22), transparent 70%),
+    linear-gradient(165deg, var(--gold-bright), var(--gold) 55%, #b6903f 100%);
+  color: #241f1a;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 3px;
+  border: 2px solid #2e2412;
+  letter-spacing: 1.2px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  padding: 14px 30px;
+  font-size: 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 2px #1c150c,
+    inset 0 0 0 4px #caa457,
+    0 8px 24px rgba(205, 169, 79, 0.3);
+}
+.btn-gold:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-gold:active:not(:disabled) {
+  filter: brightness(0.96);
+  transform: translateY(0);
+}
+.btn-gold:disabled {
+  opacity: 0.5;
+  cursor: default;
+  filter: grayscale(0.4);
+}
+.site-header .btn-gold {
+  padding: 8px 18px;
+  font-size: 13px;
+  box-shadow: 0 4px 14px rgba(205, 169, 79, 0.25);
+}
+
+/* ---------- Setup screen ----------
+   Two-column "hero" layout — a live preview of the currently-selected
+   Nexus Lord's card art on the left (updates as the picker below changes
+   selection, via the `key={heroLord.name}` remount in App.tsx re-running
+   the fade-in), the actual form on the right. Wraps to a single column
+   below the tablet breakpoint since the fixed-width art column doesn't have
+   anywhere to shrink to. */
+/* Ambient page background behind the panel — the actual reference art
+   (gold "magic circle" rings + dust in the corners) rather than a hand-
+   rolled CSS approximation. `cover` + `center top` keeps the two corner
+   circles anchored near the panel's own top corners at most viewport
+   sizes, matching the panel's own position (`margin: 5vh auto`). Lives on
+   a wrapper around .setup-screen (not the shared .app-content) so the
+   Board/Deck Builder don't inherit it. */
+.setup-page-bg {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+}
+/* Background art lives on its own pseudo-element (not directly on
+   .setup-page-bg) so opacity can fade just the image — opacity on the
+   wrapper itself would also fade .setup-screen, the real child sitting on
+   top of it. */
+.setup-page-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: url('/setup-bg.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+.setup-screen {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  max-width: 920px;
+  margin: 5vh auto;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border-style: solid;
+  border-width: 10px;
+  border-image-source: url('/ornaments/box-frame.png');
+  border-image-slice: 16;
+  border-image-width: 10px;
+  border-image-repeat: stretch;
+  border-radius: 14px;
+  overflow: hidden;
+  max-height: 90vh;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+.setup-hero {
+  position: relative;
+  flex: 0 0 320px;
+  background: #0e0f12;
+  overflow: hidden;
+}
+/* The full printed card (not a cropped fill) floats centered in the frame
+   with room to breathe — `contain`, not `cover`, plus an inset so it
+   doesn't touch the edges — with a faint ambient gold aura behind it for
+   depth, and a holographic foil sheen over it (see .setup-hero-foil/-glare
+   below) so the art reads as a lit, physical object rather than a static
+   thumbnail. Layered by explicit z-index (rather than relying on DOM
+   order) so the ::after fade and caption always land on top regardless of
+   how the foil/glare animations are reordered later. */
+.setup-hero-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse 55% 45% at 50% 46%, rgba(232, 201, 119, 0.22), transparent 70%);
+  pointer-events: none;
+}
+.setup-hero img {
+  position: absolute;
+  inset: 24px;
+  width: calc(100% - 48px);
+  height: calc(100% - 48px);
+  object-fit: contain;
+  object-position: center center;
+  z-index: 1;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.6));
+  animation: setup-hero-fade 0.4s ease;
+}
+@keyframes setup-hero-fade {
+  from { opacity: 0; transform: scale(1.03); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* Holographic foil: a repeating rainbow gradient blended with `color-dodge`
+   (the standard "foil card" trick — it lights up like reflective metallic
+   foil instead of just tinting the art) at low opacity so the card's own
+   colors stay legible underneath. Drifts on its own via the `background-
+   position` keyframe so it reads as alive even without a pointer nearby;
+   `--px`/`--py` (set from App.tsx's onMouseMove, cleared on mouse-leave)
+   let a real cursor override that drift and drag the sheen around
+   interactively, same idea as the popular CSS "holo Pokémon card" effect. */
+.setup-hero-foil {
+  position: absolute;
+  inset: 24px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.21;
+  mix-blend-mode: color-dodge;
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255, 60, 120, 0.55) 0%,
+    rgba(255, 200, 60, 0.55) 8%,
+    rgba(120, 255, 140, 0.55) 16%,
+    rgba(60, 200, 255, 0.55) 24%,
+    rgba(180, 100, 255, 0.55) 32%,
+    rgba(255, 60, 120, 0.55) 40%
+  );
+  background-size: 300% 300%;
+  background-position: var(--px, 30%) var(--py, 30%);
+  animation: setup-foil-drift 18s ease-in-out infinite, setup-foil-flash 0.8s ease-out;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+@keyframes setup-foil-drift {
+  0%, 100% { background-position: 20% 30%; }
+  50% { background-position: 80% 70%; }
+}
+/* One-shot "new card lit up" flash — keyed to heroLord.name in App.tsx so
+   this div remounts (and the animation replays) whenever the selected Nexus
+   Lord changes, briefly boosting the sheen before it settles to its normal
+   resting opacity (the same 0.21 set above, which is what's left once this
+   non-infinite animation finishes and control reverts to the base rule). */
+@keyframes setup-foil-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0.21; }
+}
+/* A soft white highlight that tracks the cursor (via the same --px/--py),
+   sitting still at center when there's no pointer — the "glare" catching
+   the foil at whatever angle you're looking from. */
+.setup-hero-glare {
+  position: absolute;
+  inset: 24px;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.23;
+  mix-blend-mode: overlay;
+  background: radial-gradient(circle at var(--px, 50%) var(--py, 40%), rgba(255, 255, 255, 0.9), transparent 55%);
+  animation: setup-glare-flash 0.8s ease-out;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+@keyframes setup-glare-flash {
+  0% { opacity: 0.9; }
+  100% { opacity: 0.23; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .setup-hero-foil,
+  .setup-hero-glare {
+    animation: none;
+  }
+}
+.setup-hero::after {
+  /* Fades the art into the panel's own background at the bottom so the
+     hard image edge doesn't compete with the caption sitting on top of it. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: linear-gradient(0deg, rgba(14, 15, 18, 0.95) 0%, transparent 45%);
+}
+/* z-index 3, same as .setup-hero-glare above — always wins the tie since
+   ::after paints as this element's last child in source order, so the
+   bottom fade reliably sits above the foil/glare sheen. */
+.setup-hero-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  padding: 16px 18px;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  text-align: center;
+}
+.setup-hero-caption-divider {
+  display: block;
+  width: 60px;
+  height: auto;
+  margin: 6px auto 0;
+  filter: brightness(1.05) saturate(1.15) hue-rotate(-4deg);
+}
+/* Ornate frame nested inside the hero panel — same box-frame border-image
+   used on the marketing site's pillar cards, sitting right at the art's own
+   inset (24px, matching the <img> above it) so it reads as a proper
+   trading-card frame around the Nexus Lord rather than the plain rounded
+   box this used to be. Sits above the art/foil/glare/fade layers (z-index
+   5) but below the caption (6) so the frame line is always visible. */
+.setup-hero-frame {
+  /* inset:24px + margin:auto establishes the same box the <img> above sizes
+     into via object-fit: contain; width/height:auto + max-width/max-height
+     100% + a fixed aspect-ratio (every Nexus Lord card ships at the same
+     600x850 print size) lets the browser compute an intrinsically-sized,
+     centered box matching the image's own rendered footprint exactly —
+     whichever dimension is actually constraining (width on the desktop
+     layout, height once the hero collapses to a short strip on mobile) —
+     instead of the frame spanning the full letterboxed container. */
+  position: absolute;
+  inset: 24px;
+  margin: auto;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 600 / 850;
+  z-index: 5;
+  pointer-events: none;
+  border-style: solid;
+  border-width: 6px;
+  border-image-source: url('/ornaments/box-frame.png');
+  border-image-slice: 16;
+  border-image-width: 6px;
+  border-image-repeat: stretch;
+  border-radius: 10px;
+  filter: brightness(1.05) saturate(1.15) hue-rotate(-4deg);
+  /* A few concentric gold rings around the card, not just the single
+     border-image line — stacked box-shadows (each 0-blur, increasing
+     spread) paint as clean nested outlines outside the frame's own edge,
+     cheaper than extra wrapper elements and immune to the aspect-ratio
+     sizing this box already needs (see the comment above). */
+  box-shadow:
+    0 0 0 1px rgba(17, 14, 8, 0.8),
+    0 0 0 3px rgba(209, 163, 82, 0.55),
+    0 0 0 4px rgba(17, 14, 8, 0.6),
+    0 0 0 7px rgba(179, 135, 58, 0.35);
+}
+.setup-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 36px 40px;
+  overflow-y: auto;
+}
+.setup-panel h1 {
+  margin: 0;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 400;
+  font-size: 38px;
+  letter-spacing: 0.3px;
+  color: var(--sidebar-fg);
+}
+.setup-divider {
+  display: block;
+  width: 220px;
+  height: auto;
+  margin: 14px auto 20px;
+  filter: brightness(1.05) saturate(1.15) hue-rotate(-4deg);
+}
+@media (max-width: 720px) {
+  .setup-screen {
+    flex-direction: column;
+    max-width: 420px;
+    max-height: 92vh;
+  }
+  .setup-hero {
+    flex: 0 0 180px;
+  }
+  .setup-panel {
+    padding: 24px;
+  }
 }
 .setup-note {
   color: var(--muted-fg);
@@ -77,9 +451,17 @@ button {
   margin-bottom: 14px;
 }
 .setup-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #c6c5cc;
   font-size: 13px;
   font-weight: 500;
+}
+.setup-row-icon {
+  flex-shrink: 0;
+  color: var(--gold);
+  opacity: 0.85;
 }
 .setup-row input,
 .setup-row select {
@@ -136,10 +518,12 @@ button {
 }
 .lord-picker-option:hover {
   border-color: rgba(232, 201, 119, 0.5);
+  transform: translateY(-1px);
 }
 .lord-picker-option.active {
   border-color: var(--gold-bright);
   background: rgba(232, 201, 119, 0.12);
+  box-shadow: 0 0 0 1px var(--gold-bright), 0 4px 14px rgba(232, 201, 119, 0.25);
 }
 .lord-picker-option img {
   width: 100%;
@@ -153,31 +537,58 @@ button {
 }
 
 .setup-start {
+  display: block;
   width: 100%;
-  padding: 13px;
-  margin-top: 10px;
-  background: linear-gradient(165deg, var(--gold-bright), var(--gold));
-  color: #241f1a;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.3px;
-  box-shadow: 0 4px 14px rgba(205, 169, 79, 0.25);
+  text-align: center;
+  margin-top: 14px;
 }
+/* Ornate button treatment layered on top of the plain .btn-gold plaque —
+   a brighter gold rim glow on hover, matching the mockup's trading-card-frame
+   styled Start Game button. .zone-corners is absolutely positioned against
+   the nearest positioned ancestor — .btn-ornate's own `position: relative`
+   above makes that this button rather than the page, so the brackets hug
+   its own four corners. */
+.btn-ornate {
+  position: relative;
+  overflow: visible;
+}
+.btn-ornate:hover,
+.btn-ornate:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 2px #1c150c,
+    inset 0 0 0 4px #caa457,
+    0 0 0 1px rgba(232, 201, 119, 0.6),
+    0 8px 32px rgba(232, 201, 119, 0.5);
+}
+
 .setup-deck-builder-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   padding: 11px;
   margin-top: 8px;
-  background: #26272c;
-  color: var(--sidebar-fg);
-  border: 1px solid var(--sidebar-border);
+  background: linear-gradient(165deg, #1a1b20, #101114);
+  color: var(--gold-bright);
+  border: 1px solid rgba(201, 169, 78, 0.45);
   border-radius: 8px;
+  font-family: 'Cinzel', serif;
   font-weight: 600;
   font-size: 14px;
+  letter-spacing: 0.3px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.setup-deck-builder-link svg {
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 .setup-deck-builder-link:hover {
-  border-color: rgba(232, 201, 119, 0.5);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 0 1px rgba(232, 201, 119, 0.3);
 }
 
 /* ---------- Online setup (room codes over Supabase Realtime) ---------- */
@@ -347,11 +758,21 @@ button {
      player's half (or beyond it) — clip hard at the half's own boundary. */
   overflow: hidden;
 }
-.board-half-top {
-  background: linear-gradient(180deg, var(--surface-top) 0%, var(--surface-top-2) 100%);
-}
+/* Same inset-vignette + grain construction as the Deck Builder's
+   card-browsing panel (.deck-browser-grid): a dark band at each edge
+   fading into the lighter blue-gray base fill, plus a faint grain texture
+   on top so the play surface doesn't read as a flat sheet of color. Four
+   edge gradients (rather than one radial) keep the dark band an even width
+   along every side instead of pooling into an oval in the middle. */
+.board-half-top,
 .board-half-bottom {
-  background: linear-gradient(0deg, var(--surface-bottom) 0%, var(--surface-bottom-2) 100%);
+  background-color: var(--surface-top);
+  background-image:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%25" height="100%25" filter="url(%23g)" opacity="0.05"/></svg>'),
+    linear-gradient(to bottom, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to top, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to right, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to left, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%);
 }
 .board-divider {
   height: 3px;
@@ -488,17 +909,25 @@ button {
   position: absolute;
   inset: 10px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 10;
 }
 .zone-corners-tight {
   inset: -6px;
+}
+/* For containers with `overflow: hidden` (e.g. .setup-screen) — a negative
+   inset like .zone-corners-tight would place the bracket in the border
+   band, which sits outside the padding box and gets clipped away entirely.
+   `inset: 0` keeps it flush against the inner edge of the border, right at
+   the visible clip boundary, so it still reads as hugging the corner. */
+.zone-corners-flush {
+  inset: 0;
 }
 .zone-corner {
   position: absolute;
   width: 26px;
   height: 26px;
   border: 0 solid var(--gold-bright);
-  opacity: 0.4;
+  opacity: 0.9;
   filter: drop-shadow(0 0 2px rgba(205, 169, 79, 0.35));
 }
 /* A tiny gold accent point right at the elbow of each bracket — a small
@@ -510,7 +939,7 @@ button {
   height: 6px;
   background: var(--gold-bright);
   transform: rotate(45deg);
-  opacity: 0.6;
+  opacity: 0.95;
   box-shadow: 0 0 3px rgba(232, 201, 119, 0.5);
 }
 .zone-corner-tl {
@@ -951,10 +1380,25 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+}
+/* Actual visual content lives in this inner wrapper (not .nexus-lord-panel
+   itself) so useFitScaleY can shrink just this box via `transform: scale()`
+   on a short viewport — .lord-column is already scrollable as a fallback,
+   but with its scrollbar hidden that read as "New Turn just disappeared"
+   rather than "scroll to find it", so this keeps everything visible
+   without scrolling in the first place at typical sizes. */
+.nexus-lord-panel-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 10px;
   padding-top: 4px;
+  width: 100%;
+  transform-origin: top center;
 }
 .nexus-lord-name {
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.2px;
@@ -979,6 +1423,7 @@ button {
   color: var(--sidebar-fg);
   border: 1px solid var(--sidebar-border);
   border-radius: 6px;
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.2px;
@@ -1048,6 +1493,7 @@ button {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
+  font-family: 'Cinzel', serif;
   font-weight: 600;
   letter-spacing: 0.2px;
 }
@@ -1122,6 +1568,7 @@ button {
   display: none;
 }
 .chants-label {
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   color: var(--gold-bright);
   font-size: 14px;
@@ -1196,6 +1643,7 @@ button {
   background: var(--sidebar-bg-2);
 }
 .chat-log-title {
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   letter-spacing: 0.3px;
   margin-bottom: 8px;
@@ -1318,6 +1766,7 @@ button {
   color: #241f1a;
   border: none;
   border-radius: 8px;
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.2px;
@@ -1333,6 +1782,12 @@ button {
   border-radius: 9px;
   padding: 4px;
   min-width: 210px;
+  /* Longer per-card menus (move-to-zone + counters + token, 15+ items) can
+     be taller than a short viewport even after the position is clamped —
+     cap the menu itself and let it scroll internally so it never extends
+     past the bottom of the screen regardless of where it opens. */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 .context-menu-item {
@@ -1366,6 +1821,7 @@ button {
   margin-bottom: 18px;
 }
 .settings-section-title {
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: var(--gold-bright);
@@ -1413,38 +1869,45 @@ button {
   /* Widened so the deck-list panel's left edge lines up with the "Open
      Deck" button's left edge above it — see .deck-menubar / .deck-main. */
   --deck-list-w: 480px;
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--app-bg);
+  overflow: hidden;
 }
-
+/* Same ambient magic-circle/dust background art as the Setup screen and
+   website, at low opacity — this view is a dense working screen (not a
+   decorative centered panel), so it's kept faint enough to stay out of
+   the way of actual card-browsing legibility. `cover` is safe here (unlike
+   the website's very tall scrolling page) since .deck-builder is always
+   exactly one viewport tall. The two child panels below already paint on
+   top of this in normal DOM order (no z-index needed), and the deck list
+   panel's own opaque background simply covers it entirely on that side. */
+.deck-builder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.15;
+  background-image: url('/setup-bg.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+.deck-builder > * {
+  position: relative;
+  z-index: 1;
+}
 .deck-topbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--sidebar-border);
-}
-.deck-logo {
-  flex: 0 0 auto;
-  background: none;
-  border: none;
-  padding: 0;
-  line-height: 0;
-  transition: transform 0.15s ease, filter 0.15s ease;
-}
-.deck-logo img {
-  display: block;
-  height: 48px;
-  width: 48px;
-  object-fit: contain;
-}
-.deck-logo:hover {
-  transform: scale(1.06);
-  filter: brightness(1.12);
+  border-bottom: 1px solid rgba(209, 163, 82, 0.2);
 }
 .deck-search {
   flex: 1 1 auto;
@@ -1619,7 +2082,7 @@ button {
   display: grid;
   grid-template-columns: 1fr var(--deck-list-w);
   align-items: center;
-  border-bottom: 1px solid var(--sidebar-border);
+  border-bottom: 1px solid rgba(209, 163, 82, 0.2);
   background: var(--sidebar-bg);
 }
 .deck-menubar-left {
@@ -1892,26 +2355,28 @@ button {
      the panel. */
   overflow: hidden;
   padding: 14px;
-  /* Neutral gray play surface, restyled as an inset vignette: a darker band
-     right at each edge that fades quickly (within ~12% of the panel) into
-     the lighter fill color, plus a faint grain texture on top so the panel
-     doesn't read as a flat sheet of color. Four edge gradients (rather than
-     one radial) keep the dark band an even width along every side of this
-     rectangular panel instead of pooling into an oval in the middle. Each
-     edge fade uses extra intermediate stops (not a plain 2-stop
-     dark-to-transparent) — a hard linear taper has a sharp corner where it
-     hits transparent, which the eye reads as a faint bright ring right at
-     the 12% mark (Mach-band effect); easing the last stretch of the fade
-     removes that visible seam. The grain is real feTurbulence noise (an
-     inline SVG filter), not a repeating pattern — a repeating-gradient
-     texture reads as diagonal stripes at this scale, not grain. */
-  background-color: #5c5d61;
+  /* Same dark palette as the Setup screen/header/website now, instead of
+     the old neutral-gray "felt play mat" look shared with the live Board —
+     this panel is a browsing/shopping list, not a play surface, so it
+     reads better matching the rest of the fantasy chrome around it than
+     mimicking the game mat. Same inset-vignette + grain construction as
+     before: a dark band at each edge (near-black) fading into a slightly
+     lighter cool blue-gray base fill (not gold-tinted — the gold accents
+     live in the borders/text/buttons around this panel, not the fill
+     itself), plus the grain texture on top so it doesn't read as a flat
+     sheet of color. Four edge gradients (rather than one radial) keep the
+     dark band an even width along every side instead of pooling into an
+     oval in the middle; each fade uses extra intermediate stops (not a
+     plain 2-stop dark-to-transparent) to avoid a visible Mach-band ring
+     where a hard linear taper would hit transparent. */
+  background-color: #1b212b;
   background-image:
     url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%25" height="100%25" filter="url(%23g)" opacity="0.05"/></svg>'),
-    linear-gradient(to bottom, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%),
-    linear-gradient(to top, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%),
-    linear-gradient(to right, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%),
-    linear-gradient(to left, #2c2d2f 0%, rgba(44, 45, 47, 0.55) 5%, rgba(44, 45, 47, 0.15) 9%, transparent 12%);
+    linear-gradient(to bottom, #0e1116 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to top, #0e1116 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to right, #0e1116 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to left, #0e1116 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%);
+  border: 1px solid rgba(209, 163, 82, 0.15);
   border-radius: 10px;
 }
 .deck-browser-grid-scroll {
@@ -2063,6 +2528,7 @@ button {
   color: var(--sidebar-fg);
   padding: 8px 12px;
   border-radius: 7px;
+  font-family: 'Cinzel', serif;
   font-size: 14px;
   font-weight: 600;
   min-width: 0;
@@ -2105,6 +2571,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-family: 'Cinzel', serif;
   font-weight: 700;
   color: var(--gold-bright);
   letter-spacing: 0.2px;
