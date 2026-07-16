@@ -44,6 +44,7 @@ export function NexusLordPanel({ player, card, viewer }: NexusLordPanelProps) {
             card={card}
             size="lg"
             dropTarget
+            arrowButton
             onClick={(e) => {
               e.preventDefault();
               dispatch({ type: 'FLIP_CARD', player: viewer, cardId: card.id, isFlipped: !card.isFlipped });

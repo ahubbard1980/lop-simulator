@@ -172,6 +172,7 @@ export function buildInitialStateFromCardLists(opts: {
     turn: 1,
     initiative: 'p1',
     actionHolder: 'p1',
+    arrows: {},
     log: [
       {
         id: 'log_start',
@@ -210,6 +211,7 @@ export function buildInitialState(opts: { p1Name: string; p1Affinity: Affinity; 
     turn: 1,
     initiative: 'p1',
     actionHolder: 'p1',
+    arrows: {},
     log: [
       {
         id: 'log_start',
@@ -250,6 +252,7 @@ export function buildGoldfishStateFromDeck(opts: {
     turn: 1,
     initiative: 'p1',
     actionHolder: 'p1',
+    arrows: {},
     log: [
       {
         id: 'log_start',

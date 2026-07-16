@@ -89,7 +89,7 @@ export function FieldZone({ player, cards, viewer, isOpponent }: FieldZoneProps)
             const attachments = attachmentsByHost.get(card.id) ?? [];
             return (
               <div key={card.id} className="field-card-wrap">
-                <DraggableCard card={card} size="md" dropTarget flipped180={isOpponent} onClick={toggleTap(card)} viewer={viewer} />
+                <DraggableCard card={card} size="md" dropTarget flipped180={isOpponent} onClick={toggleTap(card)} viewer={viewer} arrowButton />
                 {attachments.map((sig, i) => (
                   <DraggableCard
                     key={sig.id}

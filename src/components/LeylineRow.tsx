@@ -83,6 +83,11 @@ export function LeylineRow({ player, cards, viewer, isOpponent, pendingPaymentLe
                   style={{ position: 'absolute', left: i * 41, top: i * 16, zIndex: i }}
                   onClick={toggleTap(card)}
                   viewer={viewer}
+                  // Basic Leylines (no rarity emblem) are just plain "Channel
+                  // 1" mana sources, never a legal target for anything — only
+                  // non-basic ones (which print a real ability) can sensibly
+                  // be pointed at.
+                  arrowButton={!!card.rarity}
                 />
               ))}
             </div>

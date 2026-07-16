@@ -96,6 +96,19 @@ export interface LogEntry {
   kind: 'action' | 'chat';
 }
 
+/** A visual "I'm targeting/blocking that" pointer drawn from one card to
+ * another (or a Nexus Lord, itself just a CardInstance) — purely advisory,
+ * like `initiative`/`actionHolder`. Persists in shared state (so both
+ * players see it, and it survives replay/undo) until either player clicks
+ * it away or NEW_TURN clears the board of them. */
+export interface ArrowInstance {
+  id: string;
+  fromCardId: string;
+  toCardId: string;
+  /** Who drew it — either player can still remove it; this is just for the log. */
+  player: PlayerId;
+}
+
 export interface GameState {
   players: Record<PlayerId, PlayerState>;
   cards: Record<string, CardInstance>;
@@ -106,6 +119,7 @@ export interface GameState {
    * gate this in any way; either player can pass it at any time via the
    * Pass Action button. Purely advisory bookkeeping, like `initiative`. */
   actionHolder: PlayerId;
+  arrows: Record<string, ArrowInstance>;
   log: LogEntry[];
   mode: 'goldfish' | 'hotseat';
   rngState: number;

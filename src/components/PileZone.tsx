@@ -1,10 +1,9 @@
 import type { CardInstance, PlayerId } from '../engine/types';
 import { DroppableZone } from './DroppableZone';
-import { ZoneCorners } from './ZoneCorners';
 import { zoneDropId } from './dnd';
 import { useGameStore } from '../engine/store';
 import { useUIStore } from '../engine/uiStore';
-import { CardView } from './CardView';
+import { DraggableCard } from './DraggableCard';
 
 interface PileZoneProps {
   player: PlayerId;
@@ -87,9 +86,13 @@ export function PileZone({ player, zone, cards, viewer, label, isOpponent }: Pil
     <DroppableZone id={zoneDropId(player, zone)} className="pile-zone">
       <div className="pile-label">{label}</div>
       <div className="pile-stack" onClick={handleClick} onContextMenu={handleContextMenu}>
-        <ZoneCorners className="zone-corners-tight" />
         {top ? (
-          <CardView card={top} size="md" faceDown={faceDownPile} showCounters={false} flipped180={isOpponent} />
+          // No onClick/onContextMenu here — the outer .pile-stack div above
+          // already has both, and a click on this card bubbles up to it.
+          // Attaching the same handlers here too used to double-fire them
+          // (once on the card, once again on bubble), which drew 2 cards
+          // per click instead of 1.
+          <DraggableCard card={top} size="md" faceDown={faceDownPile} flipped180={isOpponent} showCounters={false} />
         ) : (
           <div className="pile-empty">empty</div>
         )}

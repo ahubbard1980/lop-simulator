@@ -41,6 +41,20 @@ interface UIState {
 
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+
+  /** Cards currently marquee-selected on the board — lets a single drag move the whole group at once. */
+  selectedCardIds: Set<string>;
+  setSelectedCardIds: (ids: string[]) => void;
+  clearSelectedCards: () => void;
+
+  /** In-flight targeting-arrow drag (icon on a card, held down, not yet
+   * dropped) — purely local until it resolves into a CREATE_ARROW dispatch
+   * on drop, so it doesn't need to be shared game state itself. `x`/`y`
+   * track the live cursor position for the temp line's loose end. */
+  arrowDraft: { fromCardId: string; x: number; y: number } | null;
+  startArrowDraft: (fromCardId: string, x: number, y: number) => void;
+  updateArrowDraft: (x: number, y: number) => void;
+  cancelArrowDraft: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -68,4 +82,13 @@ export const useUIStore = create<UIState>((set) => ({
 
   settingsOpen: false,
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+
+  selectedCardIds: new Set(),
+  setSelectedCardIds: (ids) => set({ selectedCardIds: new Set(ids) }),
+  clearSelectedCards: () => set({ selectedCardIds: new Set() }),
+
+  arrowDraft: null,
+  startArrowDraft: (fromCardId, x, y) => set({ arrowDraft: { fromCardId, x, y } }),
+  updateArrowDraft: (x, y) => set((s) => (s.arrowDraft ? { arrowDraft: { ...s.arrowDraft, x, y } } : s)),
+  cancelArrowDraft: () => set({ arrowDraft: null }),
 }));

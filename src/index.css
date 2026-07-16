@@ -927,7 +927,7 @@ button {
   width: 26px;
   height: 26px;
   border: 0 solid var(--gold-bright);
-  opacity: 0.9;
+  opacity: 0.4;
   filter: drop-shadow(0 0 2px rgba(205, 169, 79, 0.35));
 }
 /* A tiny gold accent point right at the elbow of each bracket — a small
@@ -939,7 +939,7 @@ button {
   height: 6px;
   background: var(--gold-bright);
   transform: rotate(45deg);
-  opacity: 0.95;
+  opacity: 0.6;
   box-shadow: 0 0 3px rgba(232, 201, 119, 0.5);
 }
 .zone-corner-tl {
@@ -1080,9 +1080,15 @@ button {
    along a flat vertical edge, so the only "wrong" hits are the legitimate
    ones — the right-hand neighbor's genuinely-on-top sliver — never a
    neighbor's corner poking in from an angle. */
+/* Hand hover pop-out — DISABLED (commented out, not deleted) since the
+   cursor-following PreviewPane now covers the same "see the card bigger"
+   need without also shoving the hand card up and out of its neighbors.
+   Kept here in full so it's a one-step revert if we decide the pop-out
+   should come back after testing the new preview for a while.
 .hand-card-slot:hover {
   z-index: 500 !important;
 }
+*/
 /* Pops the hovered card up and enlarges it from its own bottom edge, so it
    grows upward into open space and never drifts down past the bottom of
    the play area. The engage transition (mouse enters) has a short delay;
@@ -1099,17 +1105,21 @@ button {
   border-radius: 5px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+/*
 .hand-card-slot:hover .hand-card-zoom {
   transition: transform 0.15s ease 0.1s, box-shadow 0.15s ease 0.1s;
   transform: translateY(-28px) scale(1.9);
-  /* inset shadow with a spread larger than the card itself fills the whole
-     box uniformly — a cheap way to wash the card in a translucent gold
-     tint without an extra overlay element. */
+  // inset shadow with a spread larger than the card itself fills the whole
+  // box uniformly — a cheap way to wash the card in a translucent gold
+  // tint without an extra overlay element.
   box-shadow: inset 0 0 0 300px rgba(232, 201, 119, 0.16), 0 14px 24px rgba(0, 0, 0, 0.6);
 }
+*/
 /* While any card is being dragged, the pointer sweeping across other hand
    cards would otherwise keep toggling their hover pop-out on and off —
-   that fighting-with-the-drag look is what read as jitter/shake. */
+   that fighting-with-the-drag look is what read as jitter/shake. Commented
+   out alongside the pop-out above — with it disabled these have nothing
+   left to suppress, but they're part of the same revertible unit.
 .dragging-active .hand-card-slot:hover {
   z-index: auto !important;
 }
@@ -1117,6 +1127,7 @@ button {
   transform: none;
   filter: none;
 }
+*/
 .hand-warning {
   position: absolute;
   top: -18px;
@@ -1154,11 +1165,128 @@ button {
   filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.6));
   pointer-events: none;
 }
+/* Wraps the overlay card so the group-count badge (see below) can be
+   positioned relative to it without disturbing the card's own transform. */
+.drag-overlay-wrap {
+  position: relative;
+}
+/* "N cards are moving together" badge — only rendered when a group drag
+   (a multi-select dragged as one) is in flight, see Board.tsx's activeDrag. */
+.drag-overlay-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--gold-bright);
+  color: #1c150c;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
 .card-view.is-drop-target {
   box-shadow: 0 0 0 3px var(--gold-bright);
 }
 .card-view.card-dimmed {
   opacity: 0.5;
+}
+/* Marquee-selected — a brighter, glowing ring (vs. is-drop-target's plain
+   one) so a multi-select reads as a distinct, persistent state rather than
+   a momentary hover/drop cue. */
+.card-view.card-selected {
+  box-shadow: 0 0 0 3px var(--gold-bright), 0 0 14px 3px rgba(232, 201, 119, 0.6);
+}
+/* Rubber-band selection box, drawn while click-dragging across empty board
+   space (see Board.tsx). Fixed-positioned in viewport coordinates to match
+   the pointer events driving it, and never intercepts input itself. */
+.selection-box {
+  position: fixed;
+  z-index: 3500;
+  pointer-events: none;
+  background: rgba(232, 201, 119, 0.12);
+  border: 1px solid var(--gold-bright);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* Targeting/blocking-arrow handle — sits half-overlapping the card's own
+   bottom edge (like a grab handle) rather than inside its border, so it
+   never covers art/text. Faint until hovered so it doesn't visually compete
+   with the card itself at a glance. */
+.card-arrow-btn {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(165deg, var(--sidebar-bg-2), var(--sidebar-bg));
+  border: 1.5px solid var(--gold-bright);
+  color: var(--gold-bright);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 7;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  touch-action: none;
+}
+.card-arrow-btn:hover {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.15);
+}
+.card-arrow-btn:active {
+  cursor: grabbing;
+}
+
+/* Full-viewport overlay for targeting/blocking arrows (see ArrowLayer.tsx)
+   — fixed rather than scoped to one zone since an arrow routinely spans
+   both players' halves. Sits above ordinary board content but below
+   floating UI (hover preview, context menu, modals). */
+.arrow-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2500;
+  pointer-events: none;
+  overflow: visible;
+}
+.arrow-line {
+  fill: none;
+  stroke: var(--gold-bright);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(232, 201, 119, 0.6));
+}
+/* Wide, invisible stroke riding along the same path — the visible line
+   above is too thin to reliably click, this is the real hit target. */
+.arrow-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.arrow-line-group:hover .arrow-line {
+  stroke: #fff2c8;
+  stroke-width: 2.2;
+}
+.arrow-draft-line {
+  fill: none;
+  stroke: var(--gold-bright);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 6 5;
+  opacity: 0.85;
 }
 
 .card-face {
@@ -1424,7 +1552,7 @@ button {
   border: 1px solid var(--sidebar-border);
   border-radius: 6px;
   font-family: 'Cinzel', serif;
-  font-weight: 700;
+  font-weight: 900;
   font-size: 13px;
   letter-spacing: 0.2px;
   opacity: 0.6;
@@ -1608,7 +1736,7 @@ button {
 
 /* ---------- Sidebar ---------- */
 .sidebar {
-  width: 300px;
+  width: 320px;
   flex: 0 0 auto;
   background: var(--sidebar-bg);
   border-left: 1px solid var(--sidebar-border);
@@ -1619,14 +1747,12 @@ button {
   overflow: hidden;
 }
 
-/* Floating hover preview — pinned to the top-right corner of the viewport
-   (roughly where the sidebar already lives) instead of the cursor, so it
-   never covers the board/hand/field the player is actively using.
+/* Floating hover preview — follows the cursor (left/top set inline by
+   PreviewPane, offset and edge-clamped so it never runs off-screen or sits
+   directly under the pointer) instead of being pinned to a fixed corner.
    pointer-events:none means it can't block clicks or drags underneath it. */
 .hover-preview {
   position: fixed;
-  top: 16px;
-  right: 16px;
   z-index: 3000;
   pointer-events: none;
   filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.65));
@@ -1767,7 +1893,7 @@ button {
   border: none;
   border-radius: 8px;
   font-family: 'Cinzel', serif;
-  font-weight: 700;
+  font-weight: 900;
   font-size: 14px;
   letter-spacing: 0.2px;
   box-shadow: 0 4px 14px rgba(205, 169, 79, 0.25);

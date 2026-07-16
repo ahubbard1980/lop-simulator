@@ -13,8 +13,50 @@ import { PreviewPane } from './PreviewPane';
 import { SettingsModal } from './SettingsModal';
 import { TokenPickerOverlay } from './TokenPickerOverlay';
 import { CardView, type CardSize } from './CardView';
+import { ArrowLayer } from './ArrowLayer';
 import { cardAwareCollisionDetection, parseCardTargetId, parseZoneDropId } from './dnd';
 import type { GameState, PlayerId } from '../engine/types';
+import type { ActionInput } from '../engine/actions';
+
+// A rubber-band selection needs a small movement threshold before it counts
+// as a drag rather than a plain click — otherwise every click-to-deselect
+// would also flash an empty selection box for one frame.
+const MARQUEE_THRESHOLD = 4;
+
+// Shared by both the normal single-card drop (attach allowed) and the
+// group-drag loop below (attach disabled — there's no sensible single
+// target for N enchantments landing on one card at once, so a group drop
+// always just moves every selected card into the target's zone instead).
+function moveOneCard(
+  dispatch: (action: ActionInput) => void,
+  state: GameState,
+  activeViewer: PlayerId,
+  cardId: string,
+  overId: string,
+  allowAttach: boolean,
+) {
+  const card = state.cards[cardId];
+  if (!card) return;
+
+  const cardTarget = parseCardTargetId(overId);
+  if (cardTarget && cardTarget !== cardId) {
+    const target = state.cards[cardTarget];
+    if (!target) return;
+    if (allowAttach && card.type === 'Enchantment') {
+      dispatch({ type: 'ATTACH_CARD', player: activeViewer, cardId, toCardId: cardTarget });
+    } else {
+      const toOwner = card.zone === 'chants' ? card.owner : target.owner;
+      dispatch({ type: 'MOVE_CARD', player: activeViewer, cardId, toZone: target.zone, toOwner });
+    }
+    return;
+  }
+
+  const zoneTarget = parseZoneDropId(overId);
+  if (!zoneTarget) return;
+  const toZone = zoneTarget.zone as typeof card.zone;
+  const toOwner = toZone === 'chants' || card.zone === 'chants' ? card.owner : (zoneTarget.player as PlayerId);
+  dispatch({ type: 'MOVE_CARD', player: activeViewer, cardId, toZone, toOwner });
+}
 
 // Hoisted so the options object is referentially stable across renders —
 // otherwise useSensor/useSensors produce a new array every render, which
@@ -68,11 +110,17 @@ export function Board() {
 
   // Drives the DragOverlay clone (see render below) and a body-level class
   // that mutes the hand card hover pop-out while any drag is in flight.
-  const [activeDrag, setActiveDrag] = useState<{ cardId: string; size?: CardSize; flipped180?: boolean } | null>(null);
+  // groupCount is only set when the grabbed card is part of a multi-card
+  // selection — it drives the "+N" badge on the overlay so a group drag
+  // reads differently from a normal single-card one.
+  const [activeDrag, setActiveDrag] = useState<{ cardId: string; size?: CardSize; flipped180?: boolean; groupCount?: number } | null>(null);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current as { cardId?: string; size?: CardSize; flipped180?: boolean } | undefined;
-    if (data?.cardId) setActiveDrag({ cardId: data.cardId, size: data.size, flipped180: data.flipped180 });
+    if (!data?.cardId) return;
+    const selected = useUIStore.getState().selectedCardIds;
+    const groupCount = selected.has(data.cardId) && selected.size > 1 ? selected.size : undefined;
+    setActiveDrag({ cardId: data.cardId, size: data.size, flipped180: data.flipped180, groupCount });
   }, []);
   const clearActiveDrag = useCallback(() => setActiveDrag(null), []);
 
@@ -99,6 +147,112 @@ export function Board() {
     return () => window.removeEventListener('pointermove', onMove);
   }, []);
 
+  // Rubber-band multi-select: click-drag across empty board space to select
+  // every card the box passes over, so a single drag afterward can move the
+  // whole group at once (see handleDragEnd below). Only rendered once the
+  // drag has moved past MARQUEE_THRESHOLD, so a plain click (which should
+  // just deselect, see onPointerDown) never flashes an empty box.
+  const [marqueeBox, setMarqueeBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  useEffect(() => {
+    const drag = { active: false, startX: 0, startY: 0 };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const target = e.target as Element | null;
+      const cardEl = target?.closest('[data-card-id]');
+      const cardId = cardEl?.getAttribute('data-card-id') ?? null;
+      const store = useUIStore.getState();
+
+      // Grabbing an already-selected card keeps the selection intact so the
+      // drag that follows can carry the whole group — everything else
+      // (an unselected card, a button, empty space) counts as "elsewhere"
+      // and clears it, per the deselect-on-click-outside behavior.
+      if (cardId && store.selectedCardIds.has(cardId)) return;
+      if (store.selectedCardIds.size > 0) store.clearSelectedCards();
+
+      // Only empty board/chants background starts a marquee — not cards
+      // (dnd-kit owns those drags) and not buttons/inputs/etc.
+      if (target?.closest('[data-card-id], button, input, textarea, select, a')) return;
+      if (!target?.closest('.board-play-surface, .chants-zone')) return;
+
+      drag.active = true;
+      drag.startX = e.clientX;
+      drag.startY = e.clientY;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!drag.active) return;
+      setMarqueeBox({
+        x: Math.min(drag.startX, e.clientX),
+        y: Math.min(drag.startY, e.clientY),
+        w: Math.abs(e.clientX - drag.startX),
+        h: Math.abs(e.clientY - drag.startY),
+      });
+    };
+
+    const onPointerUp = () => {
+      if (!drag.active) return;
+      drag.active = false;
+      setMarqueeBox((box) => {
+        if (box && (box.w > MARQUEE_THRESHOLD || box.h > MARQUEE_THRESHOLD)) {
+          const right = box.x + box.w;
+          const bottom = box.y + box.h;
+          // Excludes the floating hover-preview clone and any modal overlay
+          // content — those carry the same data-card-id as the real card
+          // sitting in its zone, and shouldn't be double-counted or
+          // selectable through a backdrop.
+          const hitIds = Array.from(document.querySelectorAll('[data-card-id]'))
+            .filter((el) => !el.closest('.hover-preview, .zone-overlay-backdrop, .peek-overlay, .drag-overlay-card, .context-menu'))
+            .filter((el) => {
+              const r = el.getBoundingClientRect();
+              return r.left < right && r.right > box.x && r.top < bottom && r.bottom > box.y;
+            })
+            .map((el) => el.getAttribute('data-card-id'))
+            .filter((id): id is string => !!id);
+          if (hitIds.length > 0) useUIStore.getState().setSelectedCardIds(hitIds);
+        }
+        return null;
+      });
+    };
+
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
+
+  // Targeting/blocking arrows: the drag itself starts from a card's own
+  // arrow-button handle (see CardView/DraggableCard), which calls
+  // startArrowDraft — from there on it's tracked globally here, same as the
+  // marquee box above, since the pointer can travel anywhere on the board
+  // before landing on (or missing) a target card.
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      if (!useUIStore.getState().arrowDraft) return;
+      useUIStore.getState().updateArrowDraft(e.clientX, e.clientY);
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      const draft = useUIStore.getState().arrowDraft;
+      if (!draft) return;
+      useUIStore.getState().cancelArrowDraft();
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cardEl = el instanceof Element ? el.closest('[data-card-id]') : null;
+      const toCardId = cardEl?.getAttribute('data-card-id');
+      if (!toCardId || toCardId === draft.fromCardId) return;
+      dispatch({ type: 'CREATE_ARROW', player: activeViewer, fromCardId: draft.fromCardId, toCardId });
+    };
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [dispatch, activeViewer]);
+
   // dnd-kit tears down and re-attaches its sensor whenever the onDragEnd
   // reference changes, which breaks an in-progress drag if the callback is
   // recreated on every render. Read the latest values from a ref instead so
@@ -114,44 +268,21 @@ export function Board() {
     if (!over || !state) return;
     const cardId = (active.data.current as { cardId?: string } | undefined)?.cardId;
     if (!cardId) return;
-    const card = state.cards[cardId];
-    if (!card) return;
 
-    const cardTarget = parseCardTargetId(String(over.id));
-    if (cardTarget && cardTarget !== cardId) {
-      const target = state.cards[cardTarget];
-      if (!target) return;
-      if (card.type === 'Enchantment') {
-        dispatch({ type: 'ATTACH_CARD', player: activeViewer, cardId, toCardId: cardTarget });
-      } else {
-        // Same rule as below: a card leaving the shared Chants stack keeps
-        // its own controller instead of inheriting the drop target's owner.
-        // Field (and every other zone) lays cards out with flexbox now, so
-        // there's no position to compute — dropping onto a non-Enchantment
-        // card just moves to that card's zone/owner, same as dropping
-        // anywhere else in that zone.
-        const toOwner = card.zone === 'chants' ? card.owner : target.owner;
-        dispatch({ type: 'MOVE_CARD', player: activeViewer, cardId, toZone: target.zone, toOwner });
-      }
+    const overId = String(over.id);
+    const selected = useUIStore.getState().selectedCardIds;
+    if (selected.has(cardId) && selected.size > 1) {
+      // Group drag — the grabbed card was part of a multi-select, so every
+      // selected card rides along to the same drop target. Attaching (e.g.
+      // an Enchantment onto a creature) doesn't make sense for a whole
+      // group at once, so this always resolves to a plain zone move (see
+      // moveOneCard's allowAttach flag).
+      selected.forEach((id) => moveOneCard(dispatch, state, activeViewer, id, overId, false));
+      useUIStore.getState().clearSelectedCards();
       return;
     }
 
-    const zoneTarget = parseZoneDropId(String(over.id));
-    if (!zoneTarget) return;
-    const toZone = zoneTarget.zone as typeof card.zone;
-    // Chants is a shared stack, not owned by whichever player-slug the drop
-    // id happens to carry. That cuts both ways: dropping INTO chants keeps
-    // the card's own controller, and — just as important — a card LEAVING
-    // chants (e.g. resolving it to Dustrealm) must keep its original owner
-    // too, rather than being silently reassigned to whichever player's pile
-    // it physically landed on (easy to do by accident when the stack holds
-    // the other player's chant and you drop it on your own nearby pile).
-    const toOwner = toZone === 'chants' || card.zone === 'chants' ? card.owner : (zoneTarget.player as PlayerId);
-
-    // Every zone (Field included) lays cards out with flexbox/CSS now, so
-    // there's no pixel position to compute — the card just gets appended to
-    // whichever zone it was dropped into (see FieldZone/LeylineRow).
-    dispatch({ type: 'MOVE_CARD', player: activeViewer, cardId, toZone, toOwner });
+    moveOneCard(dispatch, state, activeViewer, cardId, overId, true);
   }, [dispatch]);
 
   const activeCard = activeDrag && state ? state.cards[activeDrag.cardId] : null;
@@ -213,9 +344,21 @@ export function Board() {
       </div>
       <DragOverlay dropAnimation={null} modifiers={DRAG_OVERLAY_MODIFIERS}>
         {activeCard ? (
-          <CardView card={activeCard} size={activeDrag?.size ?? 'md'} flipped180={activeDrag?.flipped180} className="drag-overlay-card" />
+          <div className="drag-overlay-wrap">
+            <CardView card={activeCard} size={activeDrag?.size ?? 'md'} flipped180={activeDrag?.flipped180} className="drag-overlay-card" />
+            {activeDrag?.groupCount && activeDrag.groupCount > 1 && (
+              <span className="drag-overlay-count">{activeDrag.groupCount}</span>
+            )}
+          </div>
         ) : null}
       </DragOverlay>
+      {marqueeBox && (marqueeBox.w > MARQUEE_THRESHOLD || marqueeBox.h > MARQUEE_THRESHOLD) && (
+        <div
+          className="selection-box"
+          style={{ left: marqueeBox.x, top: marqueeBox.y, width: marqueeBox.w, height: marqueeBox.h }}
+        />
+      )}
+      <ArrowLayer />
       {expandedZone && (
         <ZoneOverlay
           player={expandedZone.player}

@@ -36,6 +36,7 @@ export function ChantsZone({ viewer }: ChantsZoneProps) {
               className="chants-card"
               style={{ position: 'absolute', top: i * 25, left: 0, zIndex: i }}
               viewer={viewer}
+              arrowButton
             />
           ))}
         </div>

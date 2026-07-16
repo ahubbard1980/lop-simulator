@@ -36,6 +36,8 @@ export type Action = BaseAction &
     | { type: 'MOVE_TO_DECK'; cardId: string; position: 'top' | 'bottom' | 'shuffle' }
     | { type: 'PEEK'; targetPlayer: PlayerId; count: number }
     | { type: 'ROLL_DICE'; sides: number }
+    | { type: 'CREATE_ARROW'; fromCardId: string; toCardId: string }
+    | { type: 'REMOVE_ARROW'; arrowId: string }
   );
 
 // Plain Omit<Action, ...> collapses the discriminated union to its common

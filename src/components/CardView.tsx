@@ -78,12 +78,15 @@ interface CardViewProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onCl
   flipped180?: boolean;
   /** Ignores flipped180/exhausted rotation — used by the preview pane, which should always render upright. */
   forceUpright?: boolean;
+  /** Shows the bottom-center targeting-arrow handle — omit for previews/overlays where dragging out an arrow doesn't make sense. */
+  arrowButton?: boolean;
+  onArrowPointerDown?: (e: React.PointerEvent) => void;
 }
 
 // Placeholder "art": a colored panel keyed by affinity/type, standing in for
 // real card images until the Phase 2 deck importer supplies artwork.
 export const CardView = forwardRef<HTMLDivElement, CardViewProps>(function CardView(
-  { card, size = 'md', scale = 1, faceDown, style, className, onClick, onContextMenu, showCounters = true, dimmed, flipped180, forceUpright, ...rest },
+  { card, size = 'md', scale = 1, faceDown, style, className, onClick, onContextMenu, showCounters = true, dimmed, flipped180, forceUpright, arrowButton, onArrowPointerDown, ...rest },
   ref,
 ) {
   const base = SIZES[size];
@@ -164,6 +167,28 @@ export const CardView = forwardRef<HTMLDivElement, CardViewProps>(function CardV
             <span key={k} className="card-counter-badge">{formatCounter(k, v)}</span>
           ))}
         </div>
+      )}
+      {arrowButton && (
+        // Grabbing this and dragging to another card/Nexus Lord draws a
+        // targeting/blocking arrow between them (see ArrowLayer.tsx) —
+        // stopPropagation keeps it from also being read as a normal card
+        // drag (dnd-kit's listeners sit on this same element, one level up
+        // in the DOM) or a plain card click (tap/untap, draw, etc.).
+        <button
+          type="button"
+          className="card-arrow-btn"
+          title="Drag to a card or Nexus Lord to point an arrow at it"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onArrowPointerDown?.(e);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
+        >
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3 v14 M12 17 l-5 -5 M12 17 l5 -5" />
+          </svg>
+        </button>
       )}
     </div>
   );

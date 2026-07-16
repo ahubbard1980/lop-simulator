@@ -28,6 +28,16 @@ function nextZoneIndex(state: GameState, owner: string, zone: string): number {
   return inZone.length === 0 ? 0 : Math.max(...inZone.map((c) => c.zoneIndex)) + 1;
 }
 
+// Piles render their lowest zoneIndex as the visible "top" card (see
+// PileZone's `sorted[0]`), so a card newly moved onto one of them (drag-and-
+// drop, right-click "Move to X") belongs on top — the most recently touched
+// card, same as physically setting it down on a real pile — not buried at
+// the bottom where nextZoneIndex would put it.
+function topZoneIndex(state: GameState, owner: string, zone: string): number {
+  const inZone = cardsInZone(state, owner, zone);
+  return inZone.length === 0 ? 0 : Math.min(...inZone.map((c) => c.zoneIndex)) - 1;
+}
+
 // The Chants zone is shared between both players (a single LIFO stack), so
 // its ordering ignores owner entirely — unlike every other per-player zone.
 function nextSharedZoneIndex(state: GameState, zone: string): number {
@@ -54,7 +64,12 @@ export function reduce(state: GameState, action: Action): GameState {
         // being reassigned to whichever drop-target owner string was parsed.
         card.owner = action.toZone === 'chants' ? card.owner : action.toOwner;
         card.zoneIndex =
-          action.toIndex ?? (action.toZone === 'chants' ? nextSharedZoneIndex(draft, action.toZone) : nextZoneIndex(draft, action.toOwner, action.toZone));
+          action.toIndex ??
+          (action.toZone === 'chants'
+            ? nextSharedZoneIndex(draft, action.toZone)
+            : action.toZone === 'deck' || action.toZone === 'dustrealm' || action.toZone === 'banished'
+              ? topZoneIndex(draft, action.toOwner, action.toZone)
+              : nextZoneIndex(draft, action.toOwner, action.toZone));
         if (action.position) card.position = action.position;
         // Leaving the field/attach state breaks any attachment.
         if (fromZone !== action.toZone) {
@@ -288,7 +303,27 @@ export function reduce(state: GameState, action: Action): GameState {
             card.resonanceLocked = false;
           }
         });
+        // Targeting/blocking arrows are a turn-scoped bookkeeping aid — clear
+        // the board of them at the start of each new turn rather than letting
+        // stale ones from last turn's combat carry over.
+        draft.arrows = {};
         pushLog(draft, action.player, `Turn ${action.turn} begins — ${playerName(draft, action.targetPlayer)} has Initiative, all permanents ready`);
+        break;
+      }
+      case 'CREATE_ARROW': {
+        const id = `arrow_${action.id}`;
+        const from = draft.cards[action.fromCardId];
+        const to = draft.cards[action.toCardId];
+        if (!from || !to) return;
+        draft.arrows[id] = { id, fromCardId: action.fromCardId, toCardId: action.toCardId, player: action.player };
+        pushLog(draft, action.player, `${playerName(draft, action.player)} points ${from.name} at ${to.name}`);
+        break;
+      }
+      case 'REMOVE_ARROW': {
+        const arrow = draft.arrows[action.arrowId];
+        if (!arrow) return;
+        delete draft.arrows[action.arrowId];
+        pushLog(draft, action.player, `${playerName(draft, action.player)} clears an arrow`);
         break;
       }
       case 'MOVE_TO_DECK': {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { CardInstance, PlayerId } from '../engine/types';
 import { CardView, type CardSize } from './CardView';
@@ -18,22 +19,37 @@ interface DraggableCardProps {
   dropTarget?: boolean;
   disabled?: boolean;
   flipped180?: boolean;
+  showCounters?: boolean;
   /** Viewer for the default right-click action menu. Omit to disable the built-in menu (e.g. pile cards with their own menu). */
   viewer?: PlayerId;
+  /** Shows the bottom-center targeting-arrow handle. */
+  arrowButton?: boolean;
 }
 
-export function DraggableCard({ card, size, faceDown, style, className, onClick, onContextMenu, dropTarget, disabled, flipped180, viewer }: DraggableCardProps) {
+export function DraggableCard({ card, size, faceDown, style, className, onClick, onContextMenu, dropTarget, disabled, flipped180, showCounters, viewer, arrowButton }: DraggableCardProps) {
+  // Memoized so useDraggable/useDroppable get a referentially stable `data`
+  // object across renders that don't actually change it — a fresh object
+  // literal every render is what dnd-kit docs warn against, and with dozens
+  // of these mounting at once (a fresh hand/field render) it was the
+  // likely source of a "Cannot update a component while rendering a
+  // different component" warning naming DraggableCard/Board.
+  const dragData = useMemo(
+    () => ({ cardId: card.id, fromZone: card.zone, fromOwner: card.owner, size, flipped180 }),
+    [card.id, card.zone, card.owner, size, flipped180],
+  );
+  const dropData = useMemo(() => ({ cardId: card.id }), [card.id]);
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: cardDragId(card.id),
-    data: { cardId: card.id, fromZone: card.zone, fromOwner: card.owner, size, flipped180 },
+    data: dragData,
     disabled,
   });
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: cardTargetId(card.id),
-    data: { cardId: card.id },
+    data: dropData,
     disabled: !dropTarget,
   });
   const openContextMenu = useUIStore((s) => s.openContextMenu);
+  const isSelected = useUIStore((s) => s.selectedCardIds.has(card.id));
   const dispatch = useGameStore((s) => s.dispatch);
 
   const setRefs = (node: HTMLDivElement | null) => {
@@ -59,6 +75,11 @@ export function DraggableCard({ card, size, faceDown, style, className, onClick,
         }
       : undefined;
 
+  const handleArrowPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    useUIStore.getState().startArrowDraft(card.id, e.clientX, e.clientY);
+  };
+
   return (
     <CardView
       ref={setRefs}
@@ -66,10 +87,13 @@ export function DraggableCard({ card, size, faceDown, style, className, onClick,
       size={size}
       faceDown={faceDown}
       flipped180={flipped180}
+      showCounters={showCounters}
       onClick={onClick}
       onContextMenu={handleContextMenu}
-      className={`${className ?? ''}${isDragging ? ' is-dragging' : ''}${isOver ? ' is-drop-target' : ''}`}
+      className={`${className ?? ''}${isDragging ? ' is-dragging' : ''}${isOver ? ' is-drop-target' : ''}${isSelected ? ' card-selected' : ''}`}
       style={{ ...style, ...dragStyle }}
+      arrowButton={arrowButton}
+      onArrowPointerDown={handleArrowPointerDown}
       {...attributes}
       {...listeners}
     />
