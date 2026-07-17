@@ -1846,8 +1846,7 @@ button {
   align-items: center;
   gap: 6px;
 }
-.turn-control button,
-.initiative-toggle {
+.turn-control button {
   background: #26272c;
   color: var(--sidebar-fg);
   border: 1px solid var(--sidebar-border);

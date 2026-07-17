@@ -24,15 +24,10 @@ export function MatchInfo() {
         </span>
       </div>
       <div className="match-info-row">
-        <span>
-          Initiative — {initiativeName}
-          <button
-            className="initiative-toggle"
-            onClick={() => dispatch({ type: 'SET_INITIATIVE', player: activeViewer, targetPlayer: state.initiative === 'p1' ? 'p2' : 'p1' })}
-          >
-            Toggle
-          </button>
-        </span>
+        {/* Initiative always alternates automatically on New Turn (see
+            reducer.ts's NEW_TURN case) — no manual toggle, so it can never
+            be pushed out of sync with the actual turn count. */}
+        <span>Initiative — {initiativeName}</span>
       </div>
     </div>
   );

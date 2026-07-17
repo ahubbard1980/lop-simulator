@@ -90,42 +90,71 @@ export async function fetchRoomByCode(code: string): Promise<RoomRow | null> {
 }
 
 // Subscribe-then-catch-up for the single mutable room row (see
-// roomActions.ts for the append-only-log version of this same pattern).
+// roomActions.ts for the append-only-log version of this same pattern,
+// including why this self-heals on CHANNEL_ERROR/TIMED_OUT/CLOSED instead
+// of just relying on 'SUBSCRIBED' — a dropped realtime channel otherwise
+// goes silently and permanently quiet with no error surfaced anywhere).
 export function subscribeRoom(roomId: string, onChange: (room: RoomRow) => void): () => void {
   const db = requireSupabase();
-  let liveMode = false;
-  const buffered: RoomRow[] = [];
+  let unsubscribed = false;
+  let channel: ReturnType<typeof db.channel> | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const channel = db
-    .channel(`room:${roomId}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
-      (payload) => {
-        const row = payload.new as RoomRow;
-        if (liveMode) onChange(row);
-        else buffered.push(row);
-      },
-    )
-    .subscribe((status) => {
-      if (status !== 'SUBSCRIBED') return;
-      fetchRoom(roomId)
-        .then((room) => {
-          // Deliver the catch-up snapshot first, then anything that arrived
-          // in the gap between subscribing and this SELECT resolving —
-          // onChange's callers only react to fields being newly-present, so
-          // replaying a stale-then-fresh sequence is harmless.
-          if (room) onChange(room);
-          liveMode = true;
-          buffered.forEach(onChange);
-          buffered.length = 0;
-        })
-        .catch(() => {
-          liveMode = true;
-        });
-    });
+  const connect = () => {
+    let liveMode = false;
+    const buffered: RoomRow[] = [];
+
+    const ch = db
+      .channel(`room:${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+        (payload) => {
+          const row = payload.new as RoomRow;
+          if (liveMode) onChange(row);
+          else buffered.push(row);
+        },
+      )
+      .subscribe((status) => {
+        if (unsubscribed) return;
+
+        if (status === 'SUBSCRIBED') {
+          fetchRoom(roomId)
+            .then((room) => {
+              if (unsubscribed) return;
+              // Deliver the catch-up snapshot first, then anything that
+              // arrived in the gap between subscribing and this SELECT
+              // resolving — onChange's callers only react to fields being
+              // newly-present, so replaying a stale-then-fresh sequence is
+              // harmless.
+              if (room) onChange(room);
+              liveMode = true;
+              buffered.forEach(onChange);
+              buffered.length = 0;
+            })
+            .catch(() => {
+              liveMode = true;
+            });
+          return;
+        }
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          db.removeChannel(ch);
+          if (reconnectTimer) return;
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            if (!unsubscribed) connect();
+          }, 1500);
+        }
+      });
+    channel = ch;
+  };
+
+  connect();
 
   return () => {
-    db.removeChannel(channel);
+    unsubscribed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (channel) db.removeChannel(channel);
   };
 }

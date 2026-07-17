@@ -49,13 +49,17 @@ export function buildCardMenuItems(card: CardInstance, viewer: PlayerId, dispatc
         if (name) dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: name, delta: 1 });
       },
     },
-    {
-      label: 'Remove counter…',
-      onClick: () => {
-        const name = window.prompt('Counter name?', 'counter');
-        if (name) dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: name, delta: -1 });
-      },
-    },
+    // One-click removal per counter the card actually has, instead of
+    // making the other player retype the exact name (case/spelling had to
+    // match the original "Add counter…" prompt exactly, which was the
+    // actual complaint). +1/+1 and -1/-1 already get their own dedicated
+    // add/remove pair below, so they're excluded here to avoid duplicates.
+    ...Object.entries(card.counters)
+      .filter(([name, value]) => value > 0 && name !== '+1/+1' && name !== '-1/-1')
+      .map(([name]) => ({
+        label: `Remove ${name} counter`,
+        onClick: () => dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: name, delta: -1 }),
+      })),
     {
       label: 'Add +1/+1 counter',
       onClick: () => dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: '+1/+1', delta: 1 }),
@@ -90,6 +94,47 @@ export function buildCardMenuItems(card: CardInstance, viewer: PlayerId, dispatc
       label: 'Shuffle into deck',
       onClick: () => dispatch({ ...base, type: 'MOVE_TO_DECK', cardId: card.id, position: 'shuffle' }),
     },
+  ];
+
+  if (relatedArrowIds.length > 0) {
+    items.push({
+      label: relatedArrowIds.length > 1 ? `Remove ${relatedArrowIds.length} arrows` : 'Remove arrow',
+      separatorBefore: true,
+      onClick: () => relatedArrowIds.forEach((arrowId) => dispatch({ ...base, type: 'REMOVE_ARROW', arrowId })),
+    });
+  }
+
+  return items;
+}
+
+/** Right-click actions for a Nexus Lord — a separate, shorter menu from
+ * buildCardMenuItems above since a Nexus Lord doesn't live in a movable
+ * zone (no hand/dustrealm/banished/deck to send it to, no "put in play"). */
+export function buildNexusLordMenuItems(card: CardInstance, viewer: PlayerId, dispatch: (a: ActionInput) => void): ContextMenuItem[] {
+  const base = { player: viewer };
+  const relatedArrowIds = Object.values(useGameStore.getState().state?.arrows ?? {})
+    .filter((a) => a.fromCardId === card.id || a.toCardId === card.id)
+    .map((a) => a.id);
+
+  const items: ContextMenuItem[] = [
+    {
+      label: card.isFlipped ? 'Flip face up' : 'Flip face down',
+      onClick: () => dispatch({ ...base, type: 'FLIP_CARD', cardId: card.id, isFlipped: !card.isFlipped }),
+    },
+    {
+      label: 'Add counter…',
+      separatorBefore: true,
+      onClick: () => {
+        const name = window.prompt('Counter name?', 'counter');
+        if (name) dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: name, delta: 1 });
+      },
+    },
+    ...Object.entries(card.counters)
+      .filter(([, value]) => value > 0)
+      .map(([name]) => ({
+        label: `Remove ${name} counter`,
+        onClick: () => dispatch({ ...base, type: 'ADJUST_CARD_COUNTER', cardId: card.id, counter: name, delta: -1 }),
+      })),
   ];
 
   if (relatedArrowIds.length > 0) {

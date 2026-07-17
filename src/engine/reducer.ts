@@ -60,6 +60,15 @@ export function reduce(state: GameState, action: Action): GameState {
         }
         const fromZone = card.zone;
         card.zone = action.toZone;
+        // A card is face-down purely because it's sitting in a deck (hidden
+        // from both players) — every other zone-entering action (DRAW,
+        // MILL, MOVE_TO_DECK, CREATE_TOKEN) already sets this to match its
+        // destination zone. MOVE_CARD is the general "move to any zone"
+        // action (used by dragging a card out of a peek overlay into hand,
+        // among other things) and was the one path that left a card that
+        // had been face-down in the deck stuck face-down forever once moved
+        // anywhere else.
+        card.faceDown = action.toZone === 'deck';
         // Chants is shared — the card keeps its original controller instead of
         // being reassigned to whichever drop-target owner string was parsed.
         card.owner = action.toZone === 'chants' ? card.owner : action.toOwner;
@@ -265,11 +274,6 @@ export function reduce(state: GameState, action: Action): GameState {
         pushLog(draft, action.player, `Turn set to ${action.turn}`);
         break;
       }
-      case 'SET_INITIATIVE': {
-        draft.initiative = action.targetPlayer;
-        pushLog(draft, action.player, `${playerName(draft, action.targetPlayer)} takes Initiative`);
-        break;
-      }
       case 'PASS_ACTION': {
         draft.actionHolder = draft.actionHolder === 'p1' ? 'p2' : 'p1';
         pushLog(draft, action.player, `${playerName(draft, draft.actionHolder)} now has the Action`);
@@ -294,9 +298,9 @@ export function reduce(state: GameState, action: Action): GameState {
         break;
       }
       case 'NEW_TURN': {
-        draft.turn = action.turn;
-        draft.initiative = action.targetPlayer;
-        draft.actionHolder = action.targetPlayer;
+        draft.turn += 1;
+        draft.initiative = draft.initiative === 'p1' ? 'p2' : 'p1';
+        draft.actionHolder = draft.initiative;
         Object.values(draft.cards).forEach((card) => {
           if (card.zone === 'field' || card.zone === 'leylineRow') {
             card.exhausted = false;
@@ -307,7 +311,7 @@ export function reduce(state: GameState, action: Action): GameState {
         // the board of them at the start of each new turn rather than letting
         // stale ones from last turn's combat carry over.
         draft.arrows = {};
-        pushLog(draft, action.player, `Turn ${action.turn} begins — ${playerName(draft, action.targetPlayer)} has Initiative, all permanents ready`);
+        pushLog(draft, action.player, `Turn ${draft.turn} begins — ${playerName(draft, draft.initiative)} has Initiative, all permanents ready`);
         break;
       }
       case 'CREATE_ARROW': {

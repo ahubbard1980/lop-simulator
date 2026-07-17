@@ -4,8 +4,10 @@ import { DroppableZone } from './DroppableZone';
 import { ZoneCorners } from './ZoneCorners';
 import { zoneDropId } from './dnd';
 import { useGameStore } from '../engine/store';
+import { useUIStore } from '../engine/uiStore';
 import { Counter } from './Counter';
 import { useFitScaleY } from './useFitScale';
+import { buildNexusLordMenuItems } from './cardMenu';
 
 interface NexusLordPanelProps {
   player: PlayerId;
@@ -49,6 +51,10 @@ export function NexusLordPanel({ player, card, viewer }: NexusLordPanelProps) {
               e.preventDefault();
               dispatch({ type: 'FLIP_CARD', player: viewer, cardId: card.id, isFlipped: !card.isFlipped });
             }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              useUIStore.getState().openContextMenu(e.clientX, e.clientY, buildNexusLordMenuItems(card, viewer, dispatch));
+            }}
           />
         )}
         <div className="nexus-lord-counters">
@@ -65,18 +71,11 @@ export function NexusLordPanel({ player, card, viewer }: NexusLordPanelProps) {
         </button>
         {/* Global, not per-player — only shown on the viewer's own panel so
             it doesn't render twice (once per mirrored side). */}
-        {player === viewer && turn !== undefined && initiative !== undefined && (
+        {player === viewer && turn !== undefined && (
           <button
             className="new-turn-btn"
             title="Advance the turn, hand Initiative to the other player, and ready all permanents"
-            onClick={() =>
-              dispatch({
-                type: 'NEW_TURN',
-                player: viewer,
-                turn: turn + 1,
-                targetPlayer: initiative === 'p1' ? 'p2' : 'p1',
-              })
-            }
+            onClick={() => dispatch({ type: 'NEW_TURN', player: viewer })}
           >
             New Turn ▸
           </button>
