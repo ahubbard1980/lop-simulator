@@ -2,6 +2,7 @@ import { useUIStore } from '../engine/uiStore';
 import { useSettingsStore } from '../engine/settingsStore';
 import { useGameStore } from '../engine/store';
 import { useMultiplayerStore } from '../net/multiplayerStore';
+import { useAuthStore } from '../net/authStore';
 
 export function SettingsModal() {
   const settingsOpen = useUIStore((s) => s.settingsOpen);
@@ -12,6 +13,7 @@ export function SettingsModal() {
   const resetColors = useSettingsStore((s) => s.resetColors);
   const leaveGame = useGameStore((s) => s.leaveGame);
   const mySeat = useMultiplayerStore((s) => s.mySeat);
+  const user = useAuthStore((s) => s.user);
 
   if (!settingsOpen) return null;
 
@@ -36,6 +38,9 @@ export function SettingsModal() {
             <input type="color" value={bottomColor} onChange={(e) => setColor('bottomColor', e.target.value)} />
           </div>
           <button className="settings-reset" onClick={resetColors}>Reset to default colors</button>
+          <div className="settings-hint">
+            {user ? `Synced to your account (${user.email})` : 'Sign in from the Deck Builder to sync these across devices'}
+          </div>
         </div>
 
         <div className="settings-section">

@@ -47,13 +47,20 @@ interface UIState {
   setSelectedCardIds: (ids: string[]) => void;
   clearSelectedCards: () => void;
 
-  /** In-flight targeting-arrow drag (icon on a card, held down, not yet
-   * dropped) — purely local until it resolves into a CREATE_ARROW dispatch
-   * on drop, so it doesn't need to be shared game state itself. `x`/`y`
-   * track the live cursor position for the temp line's loose end. */
-  arrowDraft: { fromCardId: string; x: number; y: number } | null;
+  /** In-flight targeting-arrow — purely local until it resolves into a
+   * CREATE_ARROW dispatch, so it doesn't need to be shared game state
+   * itself. `x`/`y` track the live cursor position for the temp line's
+   * loose end. `following` distinguishes the two ways a player can place
+   * one: false while the mouse button is still held down from the initial
+   * press on the handle (classic click-and-drag); true once they've
+   * released without dragging anywhere, at which point the arrow keeps
+   * tracking the cursor with the button up until a later click resolves it
+   * — a click-to-start/click-to-place alternative for players who find
+   * holding a button down while aiming awkward. */
+  arrowDraft: { fromCardId: string; x: number; y: number; following: boolean } | null;
   startArrowDraft: (fromCardId: string, x: number, y: number) => void;
   updateArrowDraft: (x: number, y: number) => void;
+  setArrowFollowing: (following: boolean) => void;
   cancelArrowDraft: () => void;
 }
 
@@ -88,7 +95,8 @@ export const useUIStore = create<UIState>((set) => ({
   clearSelectedCards: () => set({ selectedCardIds: new Set() }),
 
   arrowDraft: null,
-  startArrowDraft: (fromCardId, x, y) => set({ arrowDraft: { fromCardId, x, y } }),
+  startArrowDraft: (fromCardId, x, y) => set({ arrowDraft: { fromCardId, x, y, following: false } }),
   updateArrowDraft: (x, y) => set((s) => (s.arrowDraft ? { arrowDraft: { ...s.arrowDraft, x, y } } : s)),
+  setArrowFollowing: (following) => set((s) => (s.arrowDraft ? { arrowDraft: { ...s.arrowDraft, following } } : s)),
   cancelArrowDraft: () => set({ arrowDraft: null }),
 }));

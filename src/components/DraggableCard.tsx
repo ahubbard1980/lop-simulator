@@ -50,6 +50,13 @@ export function DraggableCard({ card, size, faceDown, style, className, onClick,
   });
   const openContextMenu = useUIStore((s) => s.openContextMenu);
   const isSelected = useUIStore((s) => s.selectedCardIds.has(card.id));
+  // While a click-to-place arrow is following the cursor (see Board.tsx),
+  // highlight whichever card it's currently hovering as the card that would
+  // receive it on the next click — the only visual cue for that mode, since
+  // the button isn't held down for a drag-hover state to fall out of dnd-kit.
+  const isArrowFollowTarget = useUIStore(
+    (s) => !!s.arrowDraft?.following && s.hoveredCardId === card.id && s.arrowDraft.fromCardId !== card.id,
+  );
   const dispatch = useGameStore((s) => s.dispatch);
 
   const setRefs = (node: HTMLDivElement | null) => {
@@ -77,6 +84,16 @@ export function DraggableCard({ card, size, faceDown, style, className, onClick,
 
   const handleArrowPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
+    const draft = useUIStore.getState().arrowDraft;
+    if (draft?.following && draft.fromCardId === card.id) {
+      // Second click on the same handle while an arrow is already following
+      // the cursor (click-to-place mode, see Board.tsx) — cancel it here,
+      // rather than falling through to startArrowDraft below, which would
+      // stomp `following` back to false and make the pointerup handler think
+      // this is a brand new press instead of the cancel click.
+      useUIStore.getState().cancelArrowDraft();
+      return;
+    }
     useUIStore.getState().startArrowDraft(card.id, e.clientX, e.clientY);
   };
 
@@ -90,7 +107,7 @@ export function DraggableCard({ card, size, faceDown, style, className, onClick,
       showCounters={showCounters}
       onClick={onClick}
       onContextMenu={handleContextMenu}
-      className={`${className ?? ''}${isDragging ? ' is-dragging' : ''}${isOver ? ' is-drop-target' : ''}${isSelected ? ' card-selected' : ''}`}
+      className={`${className ?? ''}${isDragging ? ' is-dragging' : ''}${isOver ? ' is-drop-target' : ''}${isSelected ? ' card-selected' : ''}${isArrowFollowTarget ? ' arrow-follow-target' : ''}`}
       style={{ ...style, ...dragStyle }}
       arrowButton={arrowButton}
       onArrowPointerDown={handleArrowPointerDown}

@@ -230,7 +230,27 @@ export function Board() {
   // startArrowDraft — from there on it's tracked globally here, same as the
   // marquee box above, since the pointer can travel anywhere on the board
   // before landing on (or missing) a target card.
+  //
+  // Two ways to place one, both handled by this same pointerup:
+  //  1. Click-and-drag: hold the handle down, move, release over a target.
+  //  2. Click-to-place: click the handle and let go without moving — instead
+  //     of resolving anything, the arrow switches to "following" the cursor
+  //     with the button up. The *next* click anywhere then resolves it: a
+  //     different card places the arrow there, the source card again cancels
+  //     it, and a miss (empty space) leaves it following so an accidental
+  //     click elsewhere can't lose the in-progress arrow. Escape also cancels.
   useEffect(() => {
+    // A click that lands on a card to *resolve* the arrow (place it, cancel
+    // it, or toggle an existing one off) is, physically, still a real
+    // mousedown+mouseup on that card's element — the browser fires its own
+    // native "click" event for it right after pointerup, same as any other
+    // click, which would otherwise also trigger that card's own onClick
+    // (tap/untap on Field/Leyline cards). Since a card is either being
+    // clicked to interact with the arrow or clicked to tap it, never both,
+    // this flag marks "the click that's about to happen was already fully
+    // handled here" so the capture-phase listener below can swallow it
+    // before it ever reaches the card's own click handler.
+    let suppressNextClick = false;
     const onPointerMove = (e: PointerEvent) => {
       if (!useUIStore.getState().arrowDraft) return;
       useUIStore.getState().updateArrowDraft(e.clientX, e.clientY);
@@ -238,18 +258,75 @@ export function Board() {
     const onPointerUp = (e: PointerEvent) => {
       const draft = useUIStore.getState().arrowDraft;
       if (!draft) return;
-      useUIStore.getState().cancelArrowDraft();
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const cardEl = el instanceof Element ? el.closest('[data-card-id]') : null;
       const toCardId = cardEl?.getAttribute('data-card-id');
-      if (!toCardId || toCardId === draft.fromCardId) return;
-      dispatch({ type: 'CREATE_ARROW', player: activeViewer, fromCardId: draft.fromCardId, toCardId });
+
+      if (draft.following) {
+        // Second click of the click-to-place flow: a miss keeps following,
+        // only a valid different card (place) or the source card again
+        // (cancel) ends it.
+        if (!toCardId) return;
+        suppressNextClick = true;
+        useUIStore.getState().cancelArrowDraft();
+        if (toCardId !== draft.fromCardId) {
+          dispatch({ type: 'CREATE_ARROW', player: activeViewer, fromCardId: draft.fromCardId, toCardId });
+        }
+        return;
+      }
+
+      if (toCardId && toCardId !== draft.fromCardId) {
+        // Dragged straight onto a different card — place immediately. (Real
+        // press-and-drag gestures like this land pointerdown/pointerup on
+        // two different elements, which browsers never synthesize a click
+        // for, so there's nothing to suppress here.)
+        useUIStore.getState().cancelArrowDraft();
+        dispatch({ type: 'CREATE_ARROW', player: activeViewer, fromCardId: draft.fromCardId, toCardId });
+        return;
+      }
+
+      if (toCardId) suppressNextClick = true;
+      // Released back on the source card (or missed) without ever dragging
+      // elsewhere — a plain click on the handle. If it already has an
+      // arrow, toggle it off (so the handle always works even when the line
+      // itself isn't currently rendered — see the buried-in-a-pile case
+      // cardMenu.ts's "Remove arrow" handles the same way). Otherwise, enter
+      // click-to-place mode instead of doing nothing.
+      const arrows = useGameStore.getState().state?.arrows ?? {};
+      const relatedArrowIds = Object.values(arrows)
+        .filter((a) => a.fromCardId === draft.fromCardId || a.toCardId === draft.fromCardId)
+        .map((a) => a.id);
+      if (relatedArrowIds.length > 0) {
+        useUIStore.getState().cancelArrowDraft();
+        relatedArrowIds.forEach((arrowId) => dispatch({ type: 'REMOVE_ARROW', player: activeViewer, arrowId }));
+        return;
+      }
+      useUIStore.getState().setArrowFollowing(true);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && useUIStore.getState().arrowDraft?.following) {
+        useUIStore.getState().cancelArrowDraft();
+      }
+    };
+    // Capture phase so this runs before the click ever reaches a card's own
+    // onClick (React's delegated listeners fire on the bubble phase) —
+    // stopping it here is what actually keeps a card from tapping/untapping
+    // itself as a side effect of being clicked to resolve an arrow.
+    const onClickCapture = (e: MouseEvent) => {
+      if (!suppressNextClick) return;
+      suppressNextClick = false;
+      e.stopPropagation();
+      e.preventDefault();
     };
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('click', onClickCapture, true);
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('click', onClickCapture, true);
     };
   }, [dispatch, activeViewer]);
 

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { useAuthStore } from '../net/authStore';
+import { loadCloudSettings, saveCloudSettings } from '../net/cloudSettings';
 
 export interface Settings {
   topColor: string;
@@ -50,17 +52,57 @@ interface SettingsState extends Settings {
 const initial = loadSettings();
 applyToDocument(initial);
 
+function persistLocal(settings: Settings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+// Best-effort — a signed-in-out user's colors still apply and persist
+// locally regardless of whether the cloud round-trip succeeds.
+function pushToCloud(settings: Settings) {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) return;
+  saveCloudSettings(userId, settings).catch((err: unknown) => {
+    console.warn('Could not sync board colors to your account:', err);
+  });
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...initial,
   setColor: (which, value) => {
     const next = { ...get(), [which]: value };
     set({ [which]: value } as Partial<SettingsState>);
     applyToDocument(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ topColor: next.topColor, bottomColor: next.bottomColor }));
+    persistLocal(next);
+    pushToCloud(next);
   },
   resetColors: () => {
     set(DEFAULT_SETTINGS);
     applyToDocument(DEFAULT_SETTINGS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+    persistLocal(DEFAULT_SETTINGS);
+    pushToCloud(DEFAULT_SETTINGS);
   },
 }));
+
+// Once a user is (or becomes) signed in, reconcile with their account: pull
+// down colors they've saved before (e.g. on a different device), or — if
+// this is the first time this account has ever saved any — push whatever's
+// currently active up as its starting baseline. Runs once per sign-in
+// transition, not on every render; signing out leaves whatever's local as-is.
+let syncedUserId: string | null = null;
+useAuthStore.subscribe((state) => {
+  const userId = state.user?.id ?? null;
+  if (userId === syncedUserId) return;
+  syncedUserId = userId;
+  if (!userId) return;
+  loadCloudSettings(userId)
+    .then((cloud) => {
+      const settings = cloud ?? { topColor: useSettingsStore.getState().topColor, bottomColor: useSettingsStore.getState().bottomColor };
+      useSettingsStore.setState(settings);
+      applyToDocument(settings);
+      persistLocal(settings);
+      if (!cloud) return saveCloudSettings(userId, settings);
+    })
+    .catch((err: unknown) => {
+      console.warn('Could not load board colors from your account:', err);
+    });
+});

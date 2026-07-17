@@ -138,6 +138,28 @@ create policy "participants can append room actions as their own seat"
 alter publication supabase_realtime add table public.rooms, public.room_actions;
 ```
 
+## 6. Board color preferences (`user_settings`)
+
+Same pattern as `decks` above, but one row per user instead of one per named deck — this is what makes the Settings modal's play-area colors follow a signed-in account across devices instead of just this browser's `localStorage`.
+
+```sql
+create table public.user_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  top_color text not null,
+  bottom_color text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_settings enable row level security;
+
+create policy "Users manage their own settings"
+  on public.user_settings for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+Without this table, the color pickers still work — they just stay `localStorage`-only, same as guest mode.
+
 ## Known limitations
 
 - OAuth sign-in (Google/Discord/Twitch) is a full-page redirect. The app has no deep-link routing, so after an OAuth login you land back on the setup screen rather than back inside the Deck Builder mid-edit — sign back into the Deck Builder and your cloud decks will be there under Open Deck. Not an issue for password or magic-link sign-in, which happen without leaving the page (or in magic link's case, you click a link that opens the app fresh anyway).

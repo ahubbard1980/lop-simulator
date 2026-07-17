@@ -73,6 +73,17 @@ export function DiceIcon({ className }: IconProps) {
   );
 }
 
+// Targeting/blocking arrow with a strike-through — "clear all arrows".
+export function ArrowClearIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 17c5-1 9-4 11-9" />
+      <path d="M11 6.5 15 8l-1.5 4" />
+      <path d="M4 4l16 16" />
+    </svg>
+  );
+}
+
 export function LeaveIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

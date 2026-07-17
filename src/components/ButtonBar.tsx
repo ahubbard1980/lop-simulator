@@ -1,6 +1,6 @@
 import { useGameStore } from '../engine/store';
 import { useUIStore } from '../engine/uiStore';
-import { UndoIcon, RedoIcon, RestartIcon, DiceIcon, SettingsIcon, LeaveIcon } from './icons';
+import { UndoIcon, RedoIcon, RestartIcon, DiceIcon, SettingsIcon, LeaveIcon, ArrowClearIcon } from './icons';
 
 interface ButtonBarProps {
   onLeave: () => void;
@@ -13,6 +13,7 @@ export function ButtonBar({ onLeave, netMode }: ButtonBarProps) {
   const redo = useGameStore((s) => s.redo);
   const restartSameDecks = useGameStore((s) => s.restartSameDecks);
   const dispatch = useGameStore((s) => s.dispatch);
+  const arrowCount = useGameStore((s) => Object.keys(s.state?.arrows ?? {}).length);
   const activeViewer = useUIStore((s) => s.activeViewer);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
 
@@ -28,6 +29,16 @@ export function ButtonBar({ onLeave, netMode }: ButtonBarProps) {
   // handling needed for online matches.
   const rollDice = () => dispatch({ type: 'ROLL_DICE', player: activeViewer, sides: 6 });
 
+  // A targeting/blocking arrow can end up with neither endpoint card
+  // right-clickable (both moved into piles and buried under other cards),
+  // which would otherwise leave it permanently stuck — this is the
+  // guaranteed way out regardless of where its cards ended up. Only shown
+  // once there's actually an arrow to clear.
+  const clearArrows = () => {
+    const arrows = useGameStore.getState().state?.arrows ?? {};
+    Object.keys(arrows).forEach((arrowId) => dispatch({ type: 'REMOVE_ARROW', player: activeViewer, arrowId }));
+  };
+
   return (
     <div className="button-bar">
       {!netMode && (
@@ -38,6 +49,9 @@ export function ButtonBar({ onLeave, netMode }: ButtonBarProps) {
         </>
       )}
       <button className="btn-blue" title="Roll a d6" onClick={rollDice}><DiceIcon /></button>
+      {arrowCount > 0 && (
+        <button className="btn-gray" title="Clear all arrows" onClick={clearArrows}><ArrowClearIcon /></button>
+      )}
       <button className="btn-gray" title="Settings" onClick={() => setSettingsOpen(true)}><SettingsIcon /></button>
       <button className="btn-red" title="Leave / reset game" onClick={handleLeave}><LeaveIcon /></button>
     </div>

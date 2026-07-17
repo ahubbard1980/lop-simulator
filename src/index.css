@@ -764,8 +764,7 @@ button {
    on top so the play surface doesn't read as a flat sheet of color. Four
    edge gradients (rather than one radial) keep the dark band an even width
    along every side instead of pooling into an oval in the middle. */
-.board-half-top,
-.board-half-bottom {
+.board-half-top {
   background-color: var(--surface-top);
   background-image:
     url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%25" height="100%25" filter="url(%23g)" opacity="0.05"/></svg>'),
@@ -773,6 +772,15 @@ button {
     linear-gradient(to top, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
     linear-gradient(to right, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
     linear-gradient(to left, var(--surface-top-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%);
+}
+.board-half-bottom {
+  background-color: var(--surface-bottom);
+  background-image:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%25" height="100%25" filter="url(%23g)" opacity="0.05"/></svg>'),
+    linear-gradient(to bottom, var(--surface-bottom-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to top, var(--surface-bottom-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to right, var(--surface-bottom-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%),
+    linear-gradient(to left, var(--surface-bottom-2) 0%, rgba(14, 17, 22, 0.55) 5%, rgba(14, 17, 22, 0.15) 9%, transparent 12%);
 }
 .board-divider {
   height: 3px;
@@ -1201,6 +1209,17 @@ button {
    a momentary hover/drop cue. */
 .card-view.card-selected {
   box-shadow: 0 0 0 3px var(--gold-bright), 0 0 14px 3px rgba(232, 201, 119, 0.6);
+}
+/* Click-to-place arrow mode: whichever card is currently under the cursor
+   while an arrow is "following" it (see DraggableCard's isArrowFollowTarget)
+   — a pulse rather than a static ring so it reads as a live preview of
+   where the next click will land, not a persisted selection. */
+.card-view.arrow-follow-target {
+  animation: arrow-follow-pulse 1s ease-in-out infinite;
+}
+@keyframes arrow-follow-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--gold-bright), 0 0 10px 2px rgba(232, 201, 119, 0.5); }
+  50% { box-shadow: 0 0 0 3px var(--gold-bright), 0 0 18px 6px rgba(232, 201, 119, 0.85); }
 }
 /* Rubber-band selection box, drawn while click-dragging across empty board
    space (see Board.tsx). Fixed-positioned in viewport coordinates to match
@@ -1978,6 +1997,12 @@ button {
   color: var(--sidebar-fg);
   border: 1px solid var(--sidebar-border);
   border-radius: 7px;
+}
+.settings-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #8b8a92;
+  text-align: center;
 }
 .settings-danger {
   width: 100%;
