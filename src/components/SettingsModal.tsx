@@ -3,6 +3,7 @@ import { useSettingsStore } from '../engine/settingsStore';
 import { useGameStore } from '../engine/store';
 import { useMultiplayerStore } from '../net/multiplayerStore';
 import { useAuthStore } from '../net/authStore';
+import { restartNetGame } from '../net/matchHandshake';
 
 export function SettingsModal() {
   const settingsOpen = useUIStore((s) => s.settingsOpen);
@@ -13,6 +14,7 @@ export function SettingsModal() {
   const resetColors = useSettingsStore((s) => s.resetColors);
   const leaveGame = useGameStore((s) => s.leaveGame);
   const mySeat = useMultiplayerStore((s) => s.mySeat);
+  const roomId = useMultiplayerStore((s) => s.roomId);
   const user = useAuthStore((s) => s.user);
 
   if (!settingsOpen) return null;
@@ -48,9 +50,19 @@ export function SettingsModal() {
           <button
             className="settings-danger"
             onClick={() => {
+              // Online: reset the board in place for both players — same
+              // room, same code — rather than leaving back to the setup
+              // screen, which is what this used to do regardless of mode.
+              if (mySeat && roomId) {
+                if (!window.confirm('Start a new game? This clears the board for both players.')) return;
+                restartNetGame(roomId).catch((err: unknown) => {
+                  alert(err instanceof Error ? err.message : 'Could not restart the match.');
+                });
+                close();
+                return;
+              }
               if (window.confirm('Start a new game? This clears the current board.')) {
-                if (mySeat) useMultiplayerStore.getState().leaveNetGame();
-                else leaveGame();
+                leaveGame();
                 close();
               }
             }}

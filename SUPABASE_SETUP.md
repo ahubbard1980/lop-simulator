@@ -160,6 +160,19 @@ create policy "Users manage their own settings"
 
 Without this table, the color pickers still work — they just stay `localStorage`-only, same as guest mode.
 
+## 7. Restarting an online match in place (`game_epoch`)
+
+Run once against an existing project (adds columns to the two tables from step 5 — safe to run even with an active match in progress, existing rows just default to epoch 1):
+
+```sql
+alter table public.rooms add column if not exists game_epoch integer not null default 1;
+alter table public.room_actions add column if not exists game_epoch integer not null default 1;
+```
+
+The Settings modal's "Start New Game" button, when used mid-match online, republishes a fresh `initial_state` on the *same* room row and bumps `game_epoch` rather than tearing the room down — both clients pick that up and reset locally without leaving the room or generating a new code. `game_epoch` is what keeps a client that reconnects or refreshes *after* a restart from replaying the previous game's now-stale `room_actions` rows on top of the new board (the table is append-only, so old rows are never deleted — only ever filtered out by epoch).
+
+Without this migration, that button shows an error instead of restarting (the columns it writes to won't exist yet).
+
 ## Known limitations
 
 - OAuth sign-in (Google/Discord/Twitch) is a full-page redirect. The app has no deep-link routing, so after an OAuth login you land back on the setup screen rather than back inside the Deck Builder mid-edit — sign back into the Deck Builder and your cloud decks will be there under Open Deck. Not an issue for password or magic-link sign-in, which happen without leaving the page (or in magic link's case, you click a link that opens the app fresh anyway).

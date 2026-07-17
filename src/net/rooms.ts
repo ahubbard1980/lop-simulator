@@ -19,6 +19,10 @@ export interface RoomRow {
   p2_deck: Deck | null;
   initial_state: GameState | null;
   status: 'waiting' | 'active';
+  /** Bumped by restartRoom() below — lets a client that reconnects/refreshes
+   * after an in-place restart tell the previous game's now-stale
+   * room_actions rows apart from the current one (see roomActions.ts). */
+  game_epoch: number;
 }
 
 function requireSupabase() {
@@ -71,7 +75,25 @@ export async function joinRoom(
 
 export async function publishInitialState(roomId: string, state: GameState): Promise<void> {
   const db = requireSupabase();
-  const { error } = await db.from('rooms').update({ initial_state: state, status: 'active' }).eq('id', roomId);
+  // Explicit epoch 1 rather than relying on the column default — this is
+  // always the *first* build for a room (tryBuild in matchHandshake.ts only
+  // calls this while status is still 'waiting'), so it should never be
+  // anything else regardless of what a botched earlier attempt left behind.
+  const { error } = await db.from('rooms').update({ initial_state: state, status: 'active', game_epoch: 1 }).eq('id', roomId);
+  if (error) throw new Error(error.message);
+}
+
+// Restarts an already-active room in place: a fresh initial_state on the
+// *same* row, with game_epoch bumped so both clients (and anyone who
+// reconnects afterward) know to treat the previous game's room_actions rows
+// as belonging to a different, now-irrelevant game rather than replaying
+// them onto the new board. Keeps the room/code/URL exactly as they were —
+// this is the multiplayer counterpart to the local-only restartSameDecks in
+// engine/store.ts, which can't be used online since each client would reset
+// to its own locally-cached state independently instead of agreeing on one.
+export async function restartRoom(roomId: string, state: GameState, nextEpoch: number): Promise<void> {
+  const db = requireSupabase();
+  const { error } = await db.from('rooms').update({ initial_state: state, game_epoch: nextEpoch }).eq('id', roomId);
   if (error) throw new Error(error.message);
 }
 
@@ -99,6 +121,28 @@ export function subscribeRoom(roomId: string, onChange: (room: RoomRow) => void)
   let unsubscribed = false;
   let channel: ReturnType<typeof db.channel> | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let catchUpInFlight = false;
+
+  // Retries on its own (separate from the channel-level reconnect below) if
+  // the SELECT itself fails — previously a failed fetch here just silently
+  // gave up (`liveMode = true` regardless of the catch block), same gap as
+  // roomActions.ts's catch-up used to have.
+  const runCatchUp = (onDone: (room: RoomRow | null) => void) => {
+    if (catchUpInFlight) return;
+    catchUpInFlight = true;
+    fetchRoom(roomId)
+      .then((room) => {
+        catchUpInFlight = false;
+        if (unsubscribed) return;
+        onDone(room);
+      })
+      .catch(() => {
+        catchUpInFlight = false;
+        if (unsubscribed) return;
+        catchUpRetryTimer = setTimeout(() => runCatchUp(onDone), 2000);
+      });
+  };
 
   const connect = () => {
     let liveMode = false;
@@ -119,22 +163,17 @@ export function subscribeRoom(roomId: string, onChange: (room: RoomRow) => void)
         if (unsubscribed) return;
 
         if (status === 'SUBSCRIBED') {
-          fetchRoom(roomId)
-            .then((room) => {
-              if (unsubscribed) return;
-              // Deliver the catch-up snapshot first, then anything that
-              // arrived in the gap between subscribing and this SELECT
-              // resolving — onChange's callers only react to fields being
-              // newly-present, so replaying a stale-then-fresh sequence is
-              // harmless.
-              if (room) onChange(room);
-              liveMode = true;
-              buffered.forEach(onChange);
-              buffered.length = 0;
-            })
-            .catch(() => {
-              liveMode = true;
-            });
+          runCatchUp((room) => {
+            // Deliver the catch-up snapshot first, then anything that
+            // arrived in the gap between subscribing and this SELECT
+            // resolving — onChange's callers only react to fields being
+            // newly-present, so replaying a stale-then-fresh sequence is
+            // harmless.
+            if (room) onChange(room);
+            liveMode = true;
+            buffered.forEach(onChange);
+            buffered.length = 0;
+          });
           return;
         }
 
@@ -152,8 +191,22 @@ export function subscribeRoom(roomId: string, onChange: (room: RoomRow) => void)
 
   connect();
 
+  // Same tab-throttling safety net as roomActions.ts's subscribeRoomActions
+  // — re-check on regaining visibility regardless of what the channel's own
+  // status claims.
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && !unsubscribed) {
+      runCatchUp((room) => {
+        if (room) onChange(room);
+      });
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
   return () => {
     unsubscribed = true;
+    if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     if (reconnectTimer) clearTimeout(reconnectTimer);
     if (channel) db.removeChannel(channel);
   };

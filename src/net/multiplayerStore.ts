@@ -9,6 +9,11 @@ interface MultiplayerState {
   isHost: boolean;
   connectionStatus: 'idle' | 'waiting' | 'active' | 'error';
   opponentName: string | null;
+  /** Which "game" within this room is current — bumped by an in-place
+   * restart (Settings modal's "Start New Game" while online) so a client
+   * can tell a fresh room_actions row apart from the previous game's
+   * history. See rooms.ts's restartRoom / roomActions.ts's subscribeRoomActions. */
+  gameEpoch: number;
   /** Unsubscribe functions for the room-row and room_actions channels, set once a match goes active. */
   unsubscribers: (() => void)[];
 
@@ -19,13 +24,14 @@ interface MultiplayerState {
   leaveNetGame: () => void;
 }
 
-const INITIAL: Pick<MultiplayerState, 'roomId' | 'code' | 'mySeat' | 'isHost' | 'connectionStatus' | 'opponentName' | 'unsubscribers'> = {
+const INITIAL: Pick<MultiplayerState, 'roomId' | 'code' | 'mySeat' | 'isHost' | 'connectionStatus' | 'opponentName' | 'gameEpoch' | 'unsubscribers'> = {
   roomId: null,
   code: null,
   mySeat: null,
   isHost: false,
   connectionStatus: 'idle',
   opponentName: null,
+  gameEpoch: 1,
   unsubscribers: [],
 };
 
