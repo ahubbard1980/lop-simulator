@@ -4,6 +4,7 @@ import type { CardTemplate } from '../data/placeholderCards';
 import type { Rarity } from '../data/rarity';
 import { RARITY_COLORS } from '../data/rarity';
 import { AFFINITIES, affinityIconUrl } from '../data/affinities';
+import { SETS } from '../data/sets';
 import { CardView } from './CardView';
 import { ZoneCorners } from './ZoneCorners';
 import { NexusLordFlipCard } from './NexusLordFlipCard';
@@ -32,9 +33,6 @@ export type BrowseTab = DeckBuilderCategory | 'all';
 const FILTER_TABS: BrowseTab[] = ['nexusLords', 'creatures', 'enchantments', 'chants', 'leylines', 'all'];
 const TAB_LABELS: Record<BrowseTab, string> = { ...CATEGORY_LABELS, all: 'All' };
 const RARITIES: Rarity[] = ['Common', 'Uncommon', 'Rare', 'Epic'];
-// Only one set printed so far — kept as its own list (like RARITIES) so a
-// future set just gets added here rather than needing to be derived.
-const SETS = ['Awakening'];
 
 type SortKey = 'name' | 'cost' | 'type' | 'affinity' | 'rarity' | 'power' | 'toughness' | 'set';
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [

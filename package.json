@@ -14,6 +14,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.110.2",
     "immer": "^11.1.11",
+    "jspdf": "^4.2.1",
+    "jszip": "^3.10.1",
     "nanoid": "^5.1.16",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

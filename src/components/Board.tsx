@@ -14,6 +14,7 @@ import { SettingsModal } from './SettingsModal';
 import { TokenPickerOverlay } from './TokenPickerOverlay';
 import { CardView, type CardSize } from './CardView';
 import { ArrowLayer } from './ArrowLayer';
+import { InitiativeIndicator } from './InitiativeIndicator';
 import { cardAwareCollisionDetection, parseCardTargetId, parseZoneDropId } from './dnd';
 import type { GameState, PlayerId } from '../engine/types';
 import type { ActionInput } from '../engine/actions';
@@ -411,7 +412,9 @@ export function Board() {
           <div className="board-half board-half-top">
             <PlayerArea player={topPlayer} isOpponent pendingPaymentLeylineIds={pendingPaymentLeylineIds} />
           </div>
-          <div className="board-divider" />
+          <div className="board-divider">
+            <InitiativeIndicator />
+          </div>
           <div className="board-half board-half-bottom">
             <PlayerArea player={bottomPlayer} isOpponent={false} pendingPaymentLeylineIds={pendingPaymentLeylineIds} />
           </div>

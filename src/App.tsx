@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useGameStore } from './engine/store';
 import { buildGoldfishStateFromDeck } from './engine/initialState';
 import { Board } from './components/Board';
@@ -11,6 +11,7 @@ import type { Affinity } from './data/affinities';
 import { AFFINITIES } from './data/affinities';
 import { getNexusLordOptions as lordOptionsFor } from './data/cardPools';
 import { useAuthStore } from './net/authStore';
+import { isAdmin } from './net/adminGate';
 import { useMultiplayerStore } from './net/multiplayerStore';
 import { resolveRejoin, watchRoomHandshake } from './net/matchHandshake';
 import { listSavedDecks } from './deck/storage';
@@ -19,6 +20,12 @@ import type { Deck } from './deck/types';
 import { getUniversalCardIndex } from './deck/cardPool';
 import { expandDeckToTemplates } from './deck/instantiate';
 import { validateDeck } from './deck/validate';
+
+// Lazy-loaded (not a static import like every other screen here) because it
+// pulls in jsPDF/JSZip for the print-download feature — admin-only code
+// that would otherwise add ~500KB to the bundle every regular player
+// downloads on first load, just to reach the setup screen.
+const CardEditor = lazy(() => import('./components/CardEditor').then((m) => ({ default: m.CardEditor })));
 
 // An affinity isn't startable until it has at least one real Nexus Lord —
 // Prismatic doesn't yet, so it's left out of the setup screen entirely
@@ -68,9 +75,10 @@ function LordPicker({ label, affinity, value, onChange }: LordPickerProps) {
 
 interface SetupScreenProps {
   onOpenDeckBuilder: () => void;
+  onOpenCardEditor: () => void;
 }
 
-function SetupScreen({ onOpenDeckBuilder }: SetupScreenProps) {
+function SetupScreen({ onOpenDeckBuilder, onOpenCardEditor }: SetupScreenProps) {
   const startGame = useGameStore((s) => s.startGame);
   const user = useAuthStore((s) => s.user);
   const authInitialized = useAuthStore((s) => s.initialized);
@@ -294,13 +302,25 @@ function SetupScreen({ onOpenDeckBuilder }: SetupScreenProps) {
           </svg>
           Deck Builder
         </button>
+        {/* Hidden from everyone but the one admin account — the real access
+            boundary is the card_drafts RLS policy (see adminGate.ts), this
+            just keeps the entry point out of sight for regular players. */}
+        {isAdmin(user) && (
+          <button className="setup-deck-builder-link" onClick={onOpenCardEditor}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            Card Editor
+          </button>
+        )}
       </div>
       </div>
     </div>
   );
 }
 
-type Screen = 'setup' | 'deckBuilder';
+type Screen = 'setup' | 'deckBuilder' | 'cardEditor';
 
 function App() {
   const state = useGameStore((s) => s.state);
@@ -315,8 +335,12 @@ function App() {
   const content =
     screen === 'deckBuilder' ? (
       <DeckBuilder />
+    ) : screen === 'cardEditor' ? (
+      <Suspense fallback={<div className="card-editor-empty">Loading…</div>}>
+        <CardEditor />
+      </Suspense>
     ) : (
-      <SetupScreen onOpenDeckBuilder={() => setScreen('deckBuilder')} />
+      <SetupScreen onOpenDeckBuilder={() => setScreen('deckBuilder')} onOpenCardEditor={() => setScreen('cardEditor')} />
     );
 
   return (

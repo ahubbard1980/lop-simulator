@@ -790,6 +790,35 @@ button {
   position: relative;
   z-index: 5;
 }
+/* A single, unmissable Initiative tracker at the board's center — deliberately
+   cool-toned (icy blue) rather than more gold, since it exists specifically
+   to be told apart from the gold has-action/has-initiative player-area glows
+   above, which were getting confused for each other. Points down toward the
+   viewer's own half when they hold Initiative, up toward the opponent's half
+   otherwise (see InitiativeIndicator.tsx) — a plain 180° rotation, no other
+   state to track. */
+.initiative-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 40%, #23405a 0%, #0d1b26 100%);
+  border: 2px solid #7fc4ee;
+  box-shadow: 0 0 10px rgba(127, 196, 238, 0.75), 0 0 3px rgba(0, 0, 0, 0.6);
+  color: #bfe6ff;
+  z-index: 10;
+  pointer-events: none;
+  transition: transform 0.35s ease;
+}
+.initiative-indicator-down {
+  transform: translate(-50%, -50%) rotate(180deg);
+}
 
 .player-area {
   position: absolute;
@@ -2847,4 +2876,952 @@ button {
   z-index: 3000;
   pointer-events: none;
   filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.65));
+}
+
+/* ---------- Card Editor (admin) ---------- */
+.card-editor {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  background: var(--app-bg);
+  overflow: hidden;
+  color: var(--sidebar-fg);
+}
+.card-editor-denied {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted-fg);
+}
+.card-editor-list-panel {
+  flex: 0 0 380px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(209, 163, 82, 0.2);
+  min-height: 0;
+}
+.card-editor-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 14px;
+  border-bottom: 1px solid rgba(209, 163, 82, 0.2);
+}
+.card-editor-search {
+  flex: 1 1 auto;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  min-width: 0;
+}
+.card-editor-toolbar select {
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 7px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.card-editor-filters {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(209, 163, 82, 0.2);
+}
+.card-editor-filter-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted-fg);
+  margin-bottom: 4px;
+}
+.card-editor-filter-dropdown {
+  position: relative;
+}
+.card-editor-filter-dropdown-btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--sidebar-border);
+  background: #26272c;
+  color: var(--muted-fg);
+  font-size: 12px;
+  cursor: pointer;
+}
+.card-editor-filter-dropdown-btn:hover {
+  border-color: rgba(232, 201, 119, 0.4);
+}
+.card-editor-filter-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--gold-bright);
+  background: #1c1a16;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.card-editor-filter-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--sidebar-fg);
+  white-space: nowrap;
+}
+.card-editor-filter-dropdown-option:hover {
+  background: rgba(232, 201, 119, 0.1);
+}
+.card-editor-filter-clear {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--muted-fg);
+  font-size: 11px;
+  text-decoration: underline;
+  padding: 0;
+}
+.card-editor-filters .card-editor-filter-clear {
+  margin-top: 0;
+}
+.card-editor-filter-clear:hover {
+  color: var(--sidebar-fg);
+}
+.card-editor-list-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 10px 14px 20px;
+}
+.card-editor-section-label {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  margin: 14px 0 6px;
+}
+.card-editor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.card-editor-list-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--sidebar-fg);
+  font-size: 13px;
+  text-align: left;
+}
+.card-editor-list-item:hover {
+  background: rgba(232, 201, 119, 0.08);
+}
+.card-editor-list-item.active {
+  background: rgba(232, 201, 119, 0.14);
+  border-color: rgba(232, 201, 119, 0.4);
+}
+.card-editor-list-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-editor-list-meta {
+  flex: 0 0 auto;
+  color: var(--muted-fg);
+  font-size: 11px;
+}
+.card-editor-draft-badge {
+  flex: 0 0 auto;
+  background: var(--gold-bright);
+  color: #241f1a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.card-editor-form-panel {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px 32px 40px;
+}
+.card-editor-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted-fg);
+}
+.card-editor-error {
+  padding: 10px 14px;
+  margin: 10px 14px 0;
+  background: rgba(224, 87, 74, 0.15);
+  border: 1px solid rgba(224, 87, 74, 0.4);
+  border-radius: 6px;
+  color: #ffb3a8;
+  font-size: 12px;
+}
+.card-editor-form-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.card-editor-form-header h2 {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: var(--gold-bright);
+  margin: 0;
+}
+.card-editor-message {
+  font-size: 12px;
+  color: var(--muted-fg);
+}
+.card-editor-field-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.card-editor-field-grid label,
+.card-editor-textarea-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted-fg);
+}
+.card-editor-field-grid input,
+.card-editor-field-grid select,
+.card-editor-textarea-field textarea {
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.card-editor-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+.card-editor-tag-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 34px;
+}
+.card-editor-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(232, 201, 119, 0.16);
+  border: 1px solid rgba(232, 201, 119, 0.4);
+  color: var(--gold-bright);
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.card-editor-tag-chip button {
+  background: none;
+  border: none;
+  color: var(--gold-bright);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.card-editor-tag-text {
+  flex: 1 1 80px;
+  min-width: 80px;
+  background: none;
+  border: none;
+  color: var(--sidebar-fg);
+  font-size: 13px;
+  padding: 3px 2px;
+}
+.card-editor-tag-text:focus {
+  outline: none;
+}
+.card-editor-textarea-field {
+  margin-bottom: 14px;
+}
+.card-editor-textarea-field textarea {
+  resize: vertical;
+}
+.card-editor-icon-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.card-editor-icon-toolbar-btn {
+  width: 26px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 5px;
+  border: 1px solid var(--sidebar-border);
+  background: #26272c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.card-editor-icon-toolbar-btn:hover {
+  border-color: var(--gold-bright);
+}
+.card-editor-italic-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid var(--sidebar-border);
+  background: #26272c;
+  color: var(--sidebar-fg);
+  font-style: italic;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.card-editor-italic-btn:hover {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+.card-editor-icon-toolbar-btn img {
+  max-width: 100%;
+  max-height: 100%;
+}
+.card-editor-icon-toolbar-empty {
+  font-size: 11px;
+  color: var(--muted-fg);
+}
+.card-editor-icon-category {
+  position: relative;
+}
+.card-editor-icon-category-btn {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: 1px solid var(--sidebar-border);
+  background: #26272c;
+  color: var(--sidebar-fg);
+  font-size: 11px;
+  cursor: pointer;
+}
+.card-editor-icon-category-btn:hover {
+  border-color: var(--gold-bright);
+}
+.card-editor-icon-category-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 160px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--gold-bright);
+  background: #1c1a16;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.card-editor-icon-value-prompt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted-fg);
+  background: #26272c;
+  border: 1px solid var(--gold-bright);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+.card-editor-icon-value-prompt input {
+  width: 44px;
+  background: #1c1a16;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 12px;
+}
+.card-editor-icon-value-prompt button {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+.card-editor-line-height-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted-fg);
+}
+.card-editor-line-height-inline input[type='range'] {
+  width: 90px;
+}
+.card-editor-art-block {
+  margin: 10px 0 20px;
+}
+.card-editor-hint {
+  font-size: 11px;
+  color: var(--muted-fg);
+  max-width: 420px;
+  margin-top: 6px;
+}
+.card-editor-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.card-editor-actions button {
+  padding: 10px 18px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+}
+.card-editor-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.card-editor-download-format {
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--sidebar-border);
+  background: #26272c;
+  color: var(--sidebar-fg);
+  font-size: 13px;
+}
+.card-editor-bulk-download {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(209, 163, 82, 0.2);
+}
+.card-editor-bulk-download select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--sidebar-border);
+  background: #26272c;
+  color: var(--sidebar-fg);
+  font-size: 12px;
+}
+.card-editor-bulk-download button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+}
+.card-editor-bulk-download button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.card-editor-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+  overflow: hidden;
+}
+.card-editor-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 10px 14px 0;
+  border-bottom: 1px solid rgba(209, 163, 82, 0.2);
+}
+.card-editor-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-fg);
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 8px 14px;
+}
+.card-editor-tab:hover {
+  color: var(--sidebar-fg);
+}
+.card-editor-tab.active {
+  color: var(--gold-bright);
+  border-bottom-color: var(--gold-bright);
+}
+
+.card-icon-library {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+.card-icon-library-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.card-icon-library-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted-fg);
+}
+.card-icon-library-form input[type='text'] {
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.card-icon-library-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.card-icon-library-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 84px;
+  padding: 10px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  background: #26272c;
+}
+.card-icon-library-thumb {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-icon-library-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+}
+.card-icon-library-key {
+  font-size: 11px;
+  color: var(--sidebar-fg);
+  word-break: break-all;
+  text-align: center;
+}
+.card-icon-library-value-toggle {
+  font-size: 10px !important;
+  text-align: center;
+}
+.card-icon-library-category {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--muted-fg);
+  text-align: center;
+}
+.card-icon-library-category input {
+  width: 70px;
+  background: #1c1a16;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 11px;
+  text-align: center;
+}
+.card-icon-library-nudge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted-fg);
+}
+.card-icon-library-nudge button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--sidebar-border);
+  background: #1c1a16;
+  color: var(--sidebar-fg);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+.card-icon-library-nudge button:hover {
+  border-color: var(--gold-bright);
+}
+
+.card-editor-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  margin-top: 4px;
+  border-radius: 6px;
+  transition: box-shadow 0.1s ease;
+}
+.card-editor-canvas-wrap-drag-over {
+  box-shadow: 0 0 0 2px var(--gold-bright);
+}
+.card-editor-canvas-drag-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold-bright);
+  background: rgba(28, 26, 22, 0.7);
+  border-radius: 6px;
+  pointer-events: none;
+}
+/* MakePlayingCards' own trim/safe-area lines — red for the actual cut line
+   (matches MPC's own red-dotted-line convention), orange for the more
+   conservative "keep important content inside this" recommendation. Neither
+   is part of the actual render, and both sit on top of everything
+   (including the frame image) so baked-in frame artwork near the edge is
+   just as visible against them as this app's own text fields. */
+.card-editor-print-trim {
+  position: absolute;
+  border: 1px dashed rgba(220, 60, 50, 0.85);
+  pointer-events: none;
+}
+.card-editor-print-safe {
+  position: absolute;
+  border: 1px dashed rgba(230, 150, 40, 0.75);
+  pointer-events: none;
+}
+.card-editor-print-guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted-fg);
+}
+.card-editor-canvas {
+  display: block;
+  border-radius: 6px;
+  border: 1px solid var(--sidebar-border);
+  background: #1c1a16;
+  touch-action: none;
+  cursor: grab;
+}
+.card-editor-canvas:active {
+  cursor: grabbing;
+}
+.card-editor-canvas-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--muted-fg);
+  background: rgba(28, 26, 22, 0.55);
+  pointer-events: none;
+  border-radius: 6px;
+}
+/* Same message role as .card-editor-canvas-overlay, but for when a frame IS
+   already loaded and shouldn't be dimmed — only art is missing. A full-canvas
+   wash there just makes the frame look faded for no reason. */
+.card-editor-canvas-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  max-width: 90%;
+  text-align: center;
+  padding: 5px 10px;
+  font-size: 11px;
+  color: var(--muted-fg);
+  background: rgba(28, 26, 22, 0.85);
+  border-radius: 5px;
+  pointer-events: none;
+}
+.card-editor-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted-fg);
+  max-width: 300px;
+}
+.card-editor-zoom-row input[type='range'] {
+  flex: 1 1 auto;
+}
+
+.card-frame-library {
+  padding: 24px 32px 40px;
+  max-width: 900px;
+}
+.card-frame-library-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.card-frame-preview {
+  position: relative;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--sidebar-border);
+  background: #1c1a16;
+  overflow: hidden;
+  touch-action: none;
+}
+.card-frame-preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.card-frame-safe-area {
+  position: absolute;
+  border: 1px dashed rgba(232, 201, 119, 0.55);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.card-frame-text-guide {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed rgba(120, 200, 255, 0.6);
+  pointer-events: none;
+}
+.card-frame-text-guide-label {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(150, 215, 255, 0.95);
+  white-space: nowrap;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+.card-frame-element-guide {
+  position: absolute;
+  box-sizing: border-box;
+}
+.card-frame-element-guide-inactive {
+  border: 1px dashed rgba(140, 230, 150, 0.4);
+  pointer-events: none;
+}
+.card-frame-element-guide-active {
+  border: 2px solid rgba(140, 230, 150, 0.95);
+  background: rgba(140, 230, 150, 0.1);
+  cursor: move;
+}
+.card-frame-element-guide-active:focus {
+  outline: 2px solid rgba(140, 230, 150, 0.6);
+  outline-offset: 1px;
+}
+.card-frame-element-guide-label {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(170, 245, 180, 0.95);
+  white-space: nowrap;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  pointer-events: none;
+}
+.card-frame-element-resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(140, 230, 150, 0.95);
+  border-radius: 2px;
+  cursor: nwse-resize;
+}
+.card-frame-element-panel {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.card-frame-element-readout {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--muted-fg);
+  margin: 2px 0;
+}
+
+.card-frame-nudge-panel {
+  flex: 0 0 auto;
+  padding-top: 10px;
+}
+.card-frame-nudge {
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  grid-template-rows: repeat(3, 32px);
+  gap: 4px;
+  margin-top: 6px;
+}
+.card-frame-nudge-btn {
+  background: #26272c;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-fg);
+  border-radius: 4px;
+  font-size: 13px;
+}
+.card-frame-nudge-btn:hover:not(:disabled) {
+  border-color: rgba(232, 201, 119, 0.4);
+  color: var(--gold-bright);
+}
+.card-frame-nudge-btn:disabled {
+  opacity: 0.4;
+}
+.card-frame-nudge-readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted-fg);
+  white-space: nowrap;
+}
+
+.card-emblem-preview {
+  margin-top: 10px;
+  min-width: 120px;
+  min-height: 120px;
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--sidebar-border);
+  background: #1c1a16;
+}
+.card-emblem-preview img {
+  max-width: 100%;
+  max-height: 160px;
+}
+
+.text-layout-editor {
+  padding: 24px 32px 40px;
+}
+.text-layout-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+  margin-top: 10px;
+}
+.text-layout-canvas-wrap {
+  position: relative;
+  border-radius: 6px;
+  border: 1px solid var(--sidebar-border);
+  overflow: hidden;
+  touch-action: none;
+}
+.text-layout-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.text-layout-box {
+  position: absolute;
+  box-sizing: border-box;
+}
+.text-layout-box-inactive {
+  border: 1px dashed rgba(232, 201, 119, 0.3);
+  pointer-events: none;
+}
+.text-layout-box-active {
+  border: 2px solid var(--gold-bright);
+  background: rgba(232, 201, 119, 0.12);
+  cursor: move;
+}
+.text-layout-box-active:focus {
+  outline: 2px solid rgba(232, 201, 119, 0.6);
+  outline-offset: 1px;
+}
+.text-layout-resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--gold-bright);
+  border-radius: 2px;
+  cursor: nwse-resize;
+}
+.text-layout-panel {
+  flex: 0 0 260px;
+}
+.text-layout-readout {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--muted-fg);
+  margin-top: 6px;
+}
+.text-layout-line-height {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted-fg);
+}
+.text-layout-copyright-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
