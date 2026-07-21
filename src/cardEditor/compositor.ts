@@ -592,6 +592,12 @@ const ICON_GAP_RATIO = 0.1;
 // TextFieldGeometry.lineHeightRatio).
 export const DEFAULT_LINE_HEIGHT_RATIO = 1;
 
+// A blank line (two \n in a row — an intentional paragraph break) is
+// charged this fraction of a normal line's height instead of a full one —
+// still a visible gap, just tighter than treating it like a real line of
+// text would.
+const BLANK_LINE_HEIGHT_RATIO = 0.5;
+
 // Strict cap-height read as slightly small next to real letters — this
 // scales the icon up a bit while iconGlyphMetrics keeps its *bottom*
 // anchored to the baseline (not its top), so it grows upward into a little
@@ -768,7 +774,15 @@ export function wrapAndFitText(
       }
     }
     lines.push(current);
-    const totalHeight = lines.length * fontPx * lineHeightRatio;
+    // A blank line (two \n in a row, i.e. an intentional paragraph break)
+    // is charged BLANK_LINE_HEIGHT_RATIO of a normal line's height rather
+    // than a full line's worth — otherwise it eats into the shrink-to-fit
+    // budget the same as a real line of text, forcing everything smaller
+    // than necessary just to make room for mostly-empty space. It still
+    // acts as a line separator either way (see the 'break' handling above
+    // and the y-position calc below); this only changes how much room it's
+    // charged for.
+    const totalHeight = lines.reduce((sum, l) => sum + (l.length > 0 ? 1 : BLANK_LINE_HEIGHT_RATIO), 0) * fontPx * lineHeightRatio;
     if (totalHeight <= layout.h) break;
   }
 
@@ -776,6 +790,15 @@ export function wrapAndFitText(
   ctx.fillStyle = layout.color;
   const spaceWidth = ctx.measureText(' ').width;
   const iconGap = iconMetrics.size * ICON_GAP_RATIO;
+
+  // Cumulative rather than i * lineHeight, since a blank line (see above)
+  // only advances this by a fraction of a normal line.
+  let nextLineY = layout.y;
+  const lineYPositions = lines.map((lineTokens) => {
+    const y = nextLineY;
+    nextLineY += fontPx * lineHeightRatio * (lineTokens.length > 0 ? 1 : BLANK_LINE_HEIGHT_RATIO);
+    return y;
+  });
 
   lines.forEach((lineTokens, i) => {
     const widths = lineTokens.map((t) => tokenWidth(ctx, t, fontPx, iconMetrics.size, iconImages, layout));
@@ -786,7 +809,7 @@ export function wrapAndFitText(
         : layout.align === 'right'
           ? layout.x + layout.w - lineWidth
           : layout.x;
-    const y = layout.y + i * fontPx * lineHeightRatio;
+    const y = lineYPositions[i];
     let cursorX = startX;
     // Every draw call below is manually positioned via cursorX, so text
     // must always be left-anchored at that point regardless of the field's
