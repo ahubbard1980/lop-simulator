@@ -2263,6 +2263,14 @@ button {
   align-items: center;
   border-bottom: 1px solid rgba(209, 163, 82, 0.2);
   background: var(--sidebar-bg);
+  /* .deck-builder > * gives every top-level child the same z-index:1, so
+     stacking between siblings falls back to DOM order — .deck-main (the
+     card browser/deck list below) comes after this one and would paint on
+     top of it otherwise, burying the Open Deck dropdown (.deck-open-panel)
+     nested inside here no matter how high *its own* z-index is set, since
+     that's scoped to this stacking context and can't escape above a
+     sibling's. Bumping this one above .deck-main's fixes it. */
+  z-index: 2;
 }
 .deck-menubar-left {
   padding: 10px 0 10px 20px;
