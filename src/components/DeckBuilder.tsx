@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardTemplate } from '../data/placeholderCards';
 import { emptyDeck } from '../deck/types';
 import type { Deck } from '../deck/types';
@@ -147,19 +147,36 @@ export function DeckBuilder() {
   // so a regular signed-in user just sees one list: their decks.
   const unsyncedLocalDecks = user ? localDecks.filter((d) => !cloudDecks.some((c) => c.name === d.name)) : localDecks;
 
-  const toggleOpenMenu = () => {
-    setOpenMenuOpen((v) => {
-      const next = !v;
-      if (next && user) {
-        setCloudDecksLoading(true);
-        listCloudDecks(user.id)
-          .then(setCloudDecks)
-          .catch((err: unknown) => flash(err instanceof Error ? err.message : 'Could not load cloud decks.'))
-          .finally(() => setCloudDecksLoading(false));
-      }
-      return next;
-    });
-  };
+  // Reactive to `user` (not just fired once at click-time) — Supabase's
+  // session restore on page load is async, so `user` can still be null at
+  // the instant this panel is opened even though the admin/player really is
+  // signed in; without this dependency, the one-shot version left
+  // cloudDecks stuck at [] forever once that race was lost, since nothing
+  // ever retried when `user` populated moments later. Mirrors the same
+  // pattern App.tsx's SetupScreen and OnlineSetup.tsx already use.
+  useEffect(() => {
+    if (!openMenuOpen || !user) {
+      if (!user) setCloudDecks([]);
+      return;
+    }
+    let cancelled = false;
+    setCloudDecksLoading(true);
+    listCloudDecks(user.id)
+      .then((decks) => {
+        if (!cancelled) setCloudDecks(decks);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) flash(err instanceof Error ? err.message : 'Could not load cloud decks.');
+      })
+      .finally(() => {
+        if (!cancelled) setCloudDecksLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openMenuOpen, user]);
+
+  const toggleOpenMenu = () => setOpenMenuOpen((v) => !v);
 
   return (
     <div className="deck-builder">
