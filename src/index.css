@@ -2383,6 +2383,16 @@ button {
   display: grid;
   grid-template-columns: 1fr var(--deck-list-w);
   min-height: 0;
+  /* .deck-builder > * hands this an explicit z-index:1, which (unlike
+     z-index:auto) makes it a real stacking context — trapping its
+     fixed-position .deck-hover-preview descendant's own huge z-index
+     inside that context, so bumping .deck-menubar to z-index:2 (see its
+     comment) buried the hover-preview under the menubar along with
+     everything else in .deck-main. z-index:auto still paints above
+     .deck-builder::before (same stack level, later in DOM order wins)
+     without creating a new context, so the hover-preview escapes upward
+     and compares directly against .deck-menubar again. */
+  z-index: auto;
 }
 
 /* -- Left: card browser -- */
