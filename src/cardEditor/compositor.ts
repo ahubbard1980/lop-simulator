@@ -87,6 +87,11 @@ export interface TextFieldLayout {
    * falling back to an overflowing single line at minFontPx if it still
    * doesn't fit there. */
   singleLine?: boolean;
+  /** 'middle' centers the wrapped block vertically within the box instead
+   * of anchoring it to the top — used by the floating rules boxes, where a
+   * box is often taller than its text and top-anchored text reads as
+   * "sitting too high" against the banner art. Default 'top'. */
+  vAlign?: 'top' | 'middle';
 }
 
 // Real spec, calibrated against a reference card export (non-Nexus Lord,
@@ -103,6 +108,11 @@ export interface TextFieldLayout {
 // "Obra Letra" (name) has the same caveat and hasn't been confirmed
 // available via Google Fonts at all — same fallback behavior for now.
 const PT_TO_PX = 300 / 72;
+// The ascended back face's text color — very light gray instead of the
+// near-black (#1c1a16) every other template uses, per the designer: the
+// back's frame art/plaques are dark, so dark text wouldn't read there.
+// Applies to all nlb* fields and to floating-box text on back drafts.
+const NL_BACK_TEXT_COLOR = '#e8e8e8';
 // How far every position below shifted when the canvas grew from 744x1038
 // to 822x1122 (see CANVAS_W/CANVAS_H's own comment) — half the added width
 // on x, half the added height on y. A pure translation, not a scale: widths
@@ -214,6 +224,140 @@ export const CARD_LAYOUT = {
   rarityEmblem: {
     ...scaleAroundCenter(354 + PAD_X, 997 + PAD_Y, 36, 36),
   } satisfies ImageFieldLayout,
+  // ---- Nexus Lord template fields (full-bleed frame class) ----
+  // A completely different card layout from everything above: no black
+  // border (art and frame both cover-fit the entire bleed canvas — see
+  // RenderCardInput.fullBleed), no type line, no cost, no rarity emblem.
+  // Defaults below were pixel-measured off the designer's 1500x2100
+  // reference export ("Nexus Lord Chaos Front.png") and mapped into this
+  // canvas through the same cover-fit transform drawCardFrame applies to
+  // that file (scale 822/1500 = 0.548, then y - 14.4 for the height
+  // overflow cover-fit crops evenly top/bottom). Same rough-until-nudged
+  // status as every other default here — fine-tune via the Text Layout tab.
+  nlName: {
+    x: 159, y: 114, w: 438, h: 50,
+    font: '"Obra Letra", Cinzel, serif', weight: 700, color: '#1c1a16',
+    maxFontPx: Math.round(9.5 * PT_TO_PX), minFontPx: Math.round(9.5 * PT_TO_PX * 0.6), align: 'left',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  // The three stat values, drawn centered in the value circles stacked at
+  // the frame's bottom-left (top to bottom: Intelligence, Leadership,
+  // Health — matching the uploaded stat icons in the smaller circles beside
+  // them; see the nl*Icon fields below).
+  nlIntelligence: {
+    x: 148, y: 815, w: 43, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: '#1c1a16',
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  nlLeadership: {
+    x: 147, y: 897, w: 43, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: '#1c1a16',
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  // Wider than the other two stat boxes (still centered on its circle) —
+  // health is routinely two digits ("20") where Int/Ldr are one, and
+  // shrink-to-fit is width-bound in a square box for two digits, which
+  // rendered health visibly smaller than its siblings. The extra width
+  // lets "20" fit at the same height-bound size single digits get.
+  nlHealth: {
+    x: 141, y: 979, w: 57, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: '#1c1a16',
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  // The fixed bottom plaque. The floating/adjustable mid-card ability boxes
+  // from the reference design are a separate, not-yet-built feature — this
+  // is only the always-present bar along the card's bottom edge.
+  nlRulesText: {
+    x: 230, y: 918, w: 460, h: 87,
+    font: '"Noto Serif Devanagari", Georgia, serif', weight: 400, color: '#1c1a16',
+    maxFontPx: Math.round(7 * PT_TO_PX), minFontPx: Math.round(7 * PT_TO_PX * 0.6), align: 'center',
+  } satisfies TextFieldLayout,
+  // The three stat *icons* (book/crown/heart) drawn in the smaller circles
+  // left of the value circles — uploaded images (see net/nlStatIcons.ts and
+  // Frame Library's Stat Icons panel), not text, but modeled as layout
+  // fields so the Text Layout tab's drag/nudge/persist machinery applies to
+  // them unchanged. Only x/y/w/h matter; the font-ish fields below are
+  // dead weight the TextFieldLayout shape requires. Icons draw contain-fit
+  // centered within these boxes (see drawNexusLordStatIcons) — sized here
+  // to ~60% of the circle interior (the glyph floats inside the circle,
+  // per the reference mocks), centered on each circle's own center.
+  nlIntelligenceIcon: {
+    x: 80, y: 826, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  nlLeadershipIcon: {
+    x: 80, y: 903, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  nlHealthIcon: {
+    x: 80, y: 983, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  // ---- Nexus Lord BACK face (ascended side) ----
+  // Its own complete field set rather than reusing the front's: the back
+  // frame adds a fourth stat circle (Attack) which can shift every other
+  // element's position, and each affinity's back frame is its own upload —
+  // so the two faces tune independently. Defaults start as copies of the
+  // front's positions with Attack slotted one circle-step above
+  // Intelligence; drag into place against the real back frame via the Text
+  // Layout tab once it's uploaded. Text is very light gray (see
+  // NL_BACK_TEXT_COLOR) rather than the near-black every other template
+  // uses — the ascended side's frame art is dark.
+  nlbName: {
+    x: 159, y: 114, w: 438, h: 50,
+    font: '"Obra Letra", Cinzel, serif', weight: 700, color: NL_BACK_TEXT_COLOR,
+    maxFontPx: Math.round(9.5 * PT_TO_PX), minFontPx: Math.round(9.5 * PT_TO_PX * 0.6), align: 'left',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  nlbAttack: {
+    x: 148, y: 733, w: 43, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: NL_BACK_TEXT_COLOR,
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  nlbIntelligence: {
+    x: 148, y: 815, w: 43, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: NL_BACK_TEXT_COLOR,
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  nlbLeadership: {
+    x: 147, y: 897, w: 43, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: NL_BACK_TEXT_COLOR,
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  // Wider than square for the same two-digit reason as the front's health.
+  nlbHealth: {
+    x: 141, y: 979, w: 57, h: 43,
+    font: 'Cinzel, Georgia, serif', weight: 700, color: NL_BACK_TEXT_COLOR,
+    maxFontPx: Math.round(11.6 * PT_TO_PX), minFontPx: Math.round(11.6 * PT_TO_PX * 0.6), align: 'center',
+    singleLine: true,
+  } satisfies TextFieldLayout,
+  nlbRulesText: {
+    x: 230, y: 918, w: 460, h: 87,
+    font: '"Noto Serif Devanagari", Georgia, serif', weight: 400, color: NL_BACK_TEXT_COLOR,
+    maxFontPx: Math.round(7 * PT_TO_PX), minFontPx: Math.round(7 * PT_TO_PX * 0.6), align: 'center',
+  } satisfies TextFieldLayout,
+  nlbAttackIcon: {
+    x: 80, y: 744, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  nlbIntelligenceIcon: {
+    x: 80, y: 826, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  nlbLeadershipIcon: {
+    x: 80, y: 903, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  nlbHealthIcon: {
+    x: 80, y: 983, w: 34, h: 34,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
   // The area inside the black border — art's cover/contain fit targets this
   // instead of the full bleed canvas, so it isn't forced to needlessly crop
   // in to cover a border zone the opaque frame border hides anyway. Art still
@@ -224,6 +368,16 @@ export const CARD_LAYOUT = {
     w: ORIGINAL_CANVAS_W - BORDER_INSET * 2, h: ORIGINAL_CANVAS_H - BORDER_INSET * 2,
   } satisfies ImageFieldLayout,
 };
+
+// Full-bleed templates (Nexus Lord) have no black border reserving canvas
+// margin — art and frame both fit/clip against the entire canvas, so the
+// frame's own baked-in margin (the reference exports carry ~66 canvas px of
+// art-only margin around the decorative border) lands in the bleed/safe
+// zone exactly as designed instead of being doubly inset.
+export const FULL_BLEED_ART_AREA: ImageFieldLayout = { x: 0, y: 0, w: CANVAS_W, h: CANVAS_H };
+export function getArtSafeArea(fullBleed: boolean | undefined): ImageFieldLayout {
+  return fullBleed ? FULL_BLEED_ART_AREA : CARD_LAYOUT.artSafeArea;
+}
 
 export interface ImageFieldLayout {
   x: number;
@@ -246,8 +400,29 @@ export type TextFieldName =
   | 'power'
   | 'toughness'
   | 'artist'
-  | 'copyright';
-export const TEXT_FIELD_NAMES: TextFieldName[] = [
+  | 'copyright'
+  | 'nlName'
+  | 'nlIntelligence'
+  | 'nlLeadership'
+  | 'nlHealth'
+  | 'nlRulesText'
+  | 'nlIntelligenceIcon'
+  | 'nlLeadershipIcon'
+  | 'nlHealthIcon'
+  | 'nlbName'
+  | 'nlbAttack'
+  | 'nlbIntelligence'
+  | 'nlbLeadership'
+  | 'nlbHealth'
+  | 'nlbRulesText'
+  | 'nlbAttackIcon'
+  | 'nlbIntelligenceIcon'
+  | 'nlbLeadershipIcon'
+  | 'nlbHealthIcon';
+// Split by template so UIs that iterate fields (TextLayoutEditor's picker,
+// CardFrameLibrary's guide overlay) can show the set that matches the frame
+// being previewed instead of overlaying both templates' boxes at once.
+export const REGULAR_TEXT_FIELD_NAMES: TextFieldName[] = [
   'name',
   'typeLine',
   'cost',
@@ -258,6 +433,33 @@ export const TEXT_FIELD_NAMES: TextFieldName[] = [
   'toughness',
   'artist',
   'copyright',
+];
+export const NEXUS_LORD_TEXT_FIELD_NAMES: TextFieldName[] = [
+  'nlName',
+  'nlIntelligence',
+  'nlLeadership',
+  'nlHealth',
+  'nlRulesText',
+  'nlIntelligenceIcon',
+  'nlLeadershipIcon',
+  'nlHealthIcon',
+];
+export const NEXUS_LORD_BACK_TEXT_FIELD_NAMES: TextFieldName[] = [
+  'nlbName',
+  'nlbAttack',
+  'nlbIntelligence',
+  'nlbLeadership',
+  'nlbHealth',
+  'nlbRulesText',
+  'nlbAttackIcon',
+  'nlbIntelligenceIcon',
+  'nlbLeadershipIcon',
+  'nlbHealthIcon',
+];
+export const TEXT_FIELD_NAMES: TextFieldName[] = [
+  ...REGULAR_TEXT_FIELD_NAMES,
+  ...NEXUS_LORD_TEXT_FIELD_NAMES,
+  ...NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
 ];
 
 // lineHeightRatio is included so it can be nudged/persisted alongside
@@ -459,6 +661,213 @@ export function drawCardFrame(
 // not affinity-specific, so it can't just be baked into the frame PNG).
 export function drawRarityEmblem(ctx: CanvasRenderingContext2D, emblemImage: HTMLImageElement, layout: ImageFieldLayout): void {
   ctx.drawImage(emblemImage, layout.x, layout.y, layout.w, layout.h);
+}
+
+// The Nexus Lord template's stat icons (book/crown/heart in the small
+// circles left of the value circles) — uploaded images (see
+// net/nlStatIcons.ts), composited by the app rather than baked into the
+// frame so each can be repositioned individually via the Text Layout tab
+// without re-exporting frame art. Keyed by stat, drawn at the matching
+// nl*Icon layout field's box. Plain images, deliberately NOT the
+// {image, trim} pairing inline text icons use — a mid-session data-shape
+// change here once left live component state holding the old shape while
+// the renderer expected the new one, and the resulting throw corrupted the
+// shared canvas transform (see renderCard's try/finally). If a source file
+// carries transparent padding that makes its glyph render small, resize
+// its box via the Text Layout tab instead.
+export interface NexusLordStatIcons {
+  /** Attack only appears on the back (ascended) face's fourth circle. */
+  attack?: HTMLImageElement | null;
+  intelligence?: HTMLImageElement | null;
+  leadership?: HTMLImageElement | null;
+  health?: HTMLImageElement | null;
+}
+type NlStatIconFieldMap = readonly (readonly [keyof NexusLordStatIcons, TextFieldName])[];
+const NL_STAT_ICON_FIELDS_FRONT: NlStatIconFieldMap = [
+  ['intelligence', 'nlIntelligenceIcon'],
+  ['leadership', 'nlLeadershipIcon'],
+  ['health', 'nlHealthIcon'],
+];
+const NL_STAT_ICON_FIELDS_BACK: NlStatIconFieldMap = [
+  ['attack', 'nlbAttackIcon'],
+  ['intelligence', 'nlbIntelligenceIcon'],
+  ['leadership', 'nlbLeadershipIcon'],
+  ['health', 'nlbHealthIcon'],
+];
+
+// Floating ability boxes on the Nexus Lord template — decorative banner
+// strips (uploaded per affinity+side, see net/nlRulesBoxes.ts) that sit ON
+// TOP of the art but UNDER the frame, each carrying its own rules text.
+// Position/size/text are stored per draft (see CardDraft.nlRulesBoxes) and
+// adjusted by dragging directly on the card preview — unlike every other
+// text field, these aren't shared layout: each lord places its own boxes.
+export interface NlRulesBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text: string;
+}
+export const MAX_NL_RULES_BOXES = 3;
+// Boxes are horizontally locked by design: anchored so their right end
+// tucks under the right frame border, all at one shared width — only their
+// vertical position and height are per-box adjustable (see
+// CardEditorCanvas's overlay, which clamps x/w to these on every drag).
+// x/y/w/h all persist per box anyway, so relaxing this later is purely an
+// editor-side change.
+// X slid right so the banner's right end cap tucks under the frame's right
+// border art (drawn after the boxes, so it overlaps them) instead of
+// leaving a sliver of art between the two.
+export const NL_RULES_BOX_X = 395;
+export const NL_RULES_BOX_W = 345;
+export const DEFAULT_NL_RULES_BOX_H = 185;
+// Vertical gap between a box and whatever sits below it (the bottom rules
+// plaque for the first box, the previous box for the ones stacked above) —
+// see CardEditor.tsx's defaultNlRulesBox.
+export const NL_RULES_BOX_GAP = 18;
+
+// The banner asset is a vertical sandwich: ornamental bar, semi-transparent
+// middle (the ~20%-transparent parchment the art shows through), ornamental
+// bar. Stretching the whole file to an arbitrary box height would fatten or
+// crush the bars, so it draws as a vertical 3-slice: caps at a scale tied
+// to the box's width, middle stretched to fill whatever height remains.
+// Cap extent is measured from the file itself once (rows whose average
+// alpha dips below the opaque bars' mark the middle band), cached per
+// image element; a fully-opaque file just falls back to fixed-ratio caps.
+interface NlRulesBoxSlices {
+  /** Natural-size pixel heights of the top/bottom ornamental caps. */
+  topCap: number;
+  bottomCap: number;
+}
+const rulesBoxSliceCache = new WeakMap<HTMLImageElement, NlRulesBoxSlices>();
+function computeRulesBoxSlices(img: HTMLImageElement): NlRulesBoxSlices {
+  const cached = rulesBoxSliceCache.get(img);
+  if (cached) return cached;
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const fallback: NlRulesBoxSlices = { topCap: Math.round(h * 0.2), bottomCap: Math.round(h * 0.2) };
+  if (w === 0 || h === 0) return fallback;
+  let result = fallback;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      // Middle rows are semi-transparent by design; cap rows are dominated
+      // by opaque ornament (or fully transparent overshoot around it).
+      // Classify each row by its average alpha across the middle half of
+      // the width (ornament tips at the far edges would skew full-width
+      // averages), then take the longest run of "semi" rows as the middle.
+      const x0 = Math.floor(w * 0.25);
+      const x1 = Math.floor(w * 0.75);
+      const semi: boolean[] = [];
+      for (let y = 0; y < h; y += 1) {
+        let sum = 0;
+        for (let x = x0; x < x1; x += 2) {
+          sum += data[(y * w + x) * 4 + 3];
+        }
+        const avg = sum / Math.ceil((x1 - x0) / 2);
+        semi.push(avg > 60 && avg < 245);
+      }
+      let bestStart = -1;
+      let bestLen = 0;
+      let runStart = -1;
+      for (let y = 0; y <= h; y += 1) {
+        if (y < h && semi[y]) {
+          if (runStart < 0) runStart = y;
+        } else if (runStart >= 0) {
+          if (y - runStart > bestLen) {
+            bestLen = y - runStart;
+            bestStart = runStart;
+          }
+          runStart = -1;
+        }
+      }
+      // Only trust the detection when the middle band is a substantial part
+      // of the file — tiny runs mean the asset isn't shaped as expected.
+      if (bestLen > h * 0.3) {
+        result = { topCap: bestStart, bottomCap: h - (bestStart + bestLen) };
+      }
+    }
+  } catch {
+    // Tainted canvas or the like — fixed-ratio caps still render fine.
+  }
+  rulesBoxSliceCache.set(img, result);
+  return result;
+}
+
+export function drawNlRulesBoxBanners(ctx: CanvasRenderingContext2D, img: HTMLImageElement, boxes: NlRulesBox[]): void {
+  const natW = img.naturalWidth;
+  const natH = img.naturalHeight;
+  if (!natW || !natH) return;
+  const { topCap, bottomCap } = computeRulesBoxSlices(img);
+  boxes.forEach((box) => {
+    // Caps scale with the box's width (keeping the ornament's own aspect),
+    // clamped so a very short box still keeps some middle visible.
+    const widthScale = box.w / natW;
+    const maxCapH = box.h * 0.4;
+    const topH = Math.min(topCap * widthScale, maxCapH);
+    const bottomH = Math.min(bottomCap * widthScale, maxCapH);
+    const midSrcH = natH - topCap - bottomCap;
+    const midH = box.h - topH - bottomH;
+    if (topCap > 0 && topH > 0) {
+      ctx.drawImage(img, 0, 0, natW, topCap, box.x, box.y, box.w, topH);
+    }
+    if (midSrcH > 0 && midH > 0) {
+      ctx.drawImage(img, 0, topCap, natW, midSrcH, box.x, box.y + topH, box.w, midH);
+    }
+    if (bottomCap > 0 && bottomH > 0) {
+      ctx.drawImage(img, 0, natH - bottomCap, natW, bottomCap, box.x, box.y + box.h - bottomH, box.w, bottomH);
+    }
+  });
+}
+
+// Interior padding for a floating box's text — clears the ornamental bars
+// vertically and the rounded ends horizontally. The text is anchored to
+// the TOP of the banner's pale interior (top pad is larger than bottom to
+// clear the ornamental top bar) and flows downward — per the reference
+// designs, where a box's text hugs the top and the box is retracted to fit
+// it, rather than floating centered. Moving/resizing the box moves/reflows
+// its text with it.
+const NL_RULES_BOX_PAD_X = 20;
+const NL_RULES_BOX_PAD_TOP = 31;
+const NL_RULES_BOX_PAD_BOTTOM = 18;
+function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean): TextFieldLayout {
+  return {
+    x: box.x + NL_RULES_BOX_PAD_X,
+    y: box.y + NL_RULES_BOX_PAD_TOP,
+    w: Math.max(20, box.w - NL_RULES_BOX_PAD_X * 2),
+    h: Math.max(16, box.h - NL_RULES_BOX_PAD_TOP - NL_RULES_BOX_PAD_BOTTOM),
+    font: '"Noto Serif Devanagari", Georgia, serif',
+    weight: 400,
+    color: back ? NL_BACK_TEXT_COLOR : '#1c1a16',
+    maxFontPx: Math.round(7 * PT_TO_PX),
+    minFontPx: Math.round(7 * PT_TO_PX * 0.6),
+    align: 'left',
+  };
+}
+
+export function drawNexusLordStatIcons(
+  ctx: CanvasRenderingContext2D,
+  icons: NexusLordStatIcons,
+  template: 'nexusLord' | 'nexusLordBack',
+  affinity?: Affinity,
+): void {
+  const fieldMap = template === 'nexusLordBack' ? NL_STAT_ICON_FIELDS_BACK : NL_STAT_ICON_FIELDS_FRONT;
+  fieldMap.forEach(([stat, field]) => {
+    const img = icons[stat];
+    if (!img || !img.naturalWidth || !img.naturalHeight) return;
+    const box = getTextFieldGeometry(field, affinity);
+    // Contain-fit centered — the box is the tunable target area; the icon
+    // keeps its own aspect ratio within it rather than stretching to fill.
+    const scale = Math.min(box.w / img.naturalWidth, box.h / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
+  });
 }
 
 // Inline icons and italics in Rules Text (and any other text field, for
@@ -792,8 +1201,12 @@ export function wrapAndFitText(
   const iconGap = iconMetrics.size * ICON_GAP_RATIO;
 
   // Cumulative rather than i * lineHeight, since a blank line (see above)
-  // only advances this by a fraction of a normal line.
-  let nextLineY = layout.y;
+  // only advances this by a fraction of a normal line. vAlign 'middle'
+  // pushes the whole block down by half the box's leftover height — the
+  // same weighted-height formula the shrink-to-fit loop used, so the block
+  // that was measured is exactly the block being centered.
+  const blockHeight = lines.reduce((sum, l) => sum + (l.length > 0 ? 1 : BLANK_LINE_HEIGHT_RATIO), 0) * fontPx * lineHeightRatio;
+  let nextLineY = layout.y + (layout.vAlign === 'middle' ? Math.max(0, (layout.h - blockHeight) / 2) : 0);
   const lineYPositions = lines.map((lineTokens) => {
     const y = nextLineY;
     nextLineY += fontPx * lineHeightRatio * (lineTokens.length > 0 ? 1 : BLANK_LINE_HEIGHT_RATIO);
@@ -873,6 +1286,11 @@ export function wrapAndFitText(
 }
 
 export interface CardTextFields {
+  /** Which set of field layouts this card draws with — 'nexusLord' uses the
+   * nl* fields exclusively (no type line/cost/flavor/power/toughness),
+   * 'nexusLordBack' the nlb* fields (same shape plus Attack), and the
+   * default draws the regular card layout. */
+  template?: 'regular' | 'nexusLord' | 'nexusLordBack';
   name: string;
   /** "{Primary Type} - {secondary types joined}" — built by the caller
    * (e.g. CardEditor.tsx) since compositor.ts doesn't know about the
@@ -886,6 +1304,18 @@ export interface CardTextFields {
   flavorText?: string;
   power?: number;
   toughness?: number;
+  /** Nexus Lord stats (nexusLord/nexusLordBack templates only) — drawn in
+   * the value circles at the frame's bottom-left, top to bottom. Attack
+   * exists only on the ascended back face. */
+  attack?: number;
+  intelligence?: number;
+  leadership?: number;
+  health?: number;
+  /** Floating ability boxes (template: 'nexusLord' only) — each box's text
+   * is anchored to its own rect (see NlRulesBox). The banner images behind
+   * them come from RenderCardInput.nlRulesBoxImage; this field only drives
+   * the text pass. */
+  nlRulesBoxes?: NlRulesBox[];
   /** Credited next to the paintbrush icon baked into the frame. */
   artistName?: string;
   /** e.g. "TM & C 2025 Nexus Forge". */
@@ -898,6 +1328,31 @@ export interface CardTextFields {
 
 export function drawCardText(ctx: CanvasRenderingContext2D, fields: CardTextFields, iconImages: IconImages = {}): void {
   const { affinity } = fields;
+  if (fields.template === 'nexusLord' || fields.template === 'nexusLordBack') {
+    // A different card shape entirely, not a variation on the regular
+    // layout — full-bleed art, name plate, stat circles with their uploaded
+    // icons (drawn separately, see drawNexusLordStatIcons), a fixed bottom
+    // rules plaque, and the floating ability boxes. No artist credit or
+    // copyright line — per the designer, this template doesn't carry them.
+    // The back (ascended) face is the same shape plus an Attack circle,
+    // drawn against its own nlb* field set so the two faces tune
+    // independently.
+    const back = fields.template === 'nexusLordBack';
+    wrapAndFitText(ctx, fields.name, getTextFieldLayout(back ? 'nlbName' : 'nlName', affinity), iconImages);
+    if (back && fields.attack !== undefined)
+      wrapAndFitText(ctx, String(fields.attack), getTextFieldLayout('nlbAttack', affinity), iconImages);
+    if (fields.intelligence !== undefined)
+      wrapAndFitText(ctx, String(fields.intelligence), getTextFieldLayout(back ? 'nlbIntelligence' : 'nlIntelligence', affinity), iconImages);
+    if (fields.leadership !== undefined)
+      wrapAndFitText(ctx, String(fields.leadership), getTextFieldLayout(back ? 'nlbLeadership' : 'nlLeadership', affinity), iconImages);
+    if (fields.health !== undefined)
+      wrapAndFitText(ctx, String(fields.health), getTextFieldLayout(back ? 'nlbHealth' : 'nlHealth', affinity), iconImages);
+    if (fields.rulesText) wrapAndFitText(ctx, fields.rulesText, getTextFieldLayout(back ? 'nlbRulesText' : 'nlRulesText', affinity), iconImages);
+    fields.nlRulesBoxes?.forEach((box) => {
+      if (box.text) wrapAndFitText(ctx, box.text, nlRulesBoxTextLayout(box, back), iconImages);
+    });
+    return;
+  }
   wrapAndFitText(ctx, fields.name, getTextFieldLayout('name', affinity), iconImages);
   if (fields.typeLine) wrapAndFitText(ctx, fields.typeLine, getTextFieldLayout('typeLine', affinity), iconImages);
   if (fields.cost !== undefined) wrapAndFitText(ctx, String(fields.cost), getTextFieldLayout('cost', affinity), iconImages);
@@ -966,6 +1421,21 @@ export interface RenderCardInput {
    * reused across renders — icon tags in any text field resolve against
    * this map; a field with no {key} tags in it is unaffected. */
   iconImages?: IconImages;
+  /** Full-bleed templates (Nexus Lord): art and frame both fit/clip against
+   * the entire bleed canvas instead of the black-border-inset artSafeArea —
+   * see FULL_BLEED_ART_AREA. Callers should set this whenever
+   * fields.template is 'nexusLord'. */
+  fullBleed?: boolean;
+  /** Nexus Lord stat icons (see drawNexusLordStatIcons) — only drawn for
+   * the nexusLord/nexusLordBack templates; slots with no uploaded image
+   * just skip. */
+  nlStatIcons?: NexusLordStatIcons;
+  /** The floating ability boxes' banner image for this card's affinity+side
+   * (see net/nlRulesBoxes.ts) — drawn above the art but under the frame at
+   * each of fields.nlRulesBoxes' rects. Without it the boxes' text still
+   * draws (positioning stays possible before the asset is uploaded); there's
+   * just no banner behind it. */
+  nlRulesBoxImage?: HTMLImageElement | null;
 }
 
 // Renders into whatever pixel size the target canvas already has — layout
@@ -985,50 +1455,71 @@ export async function renderCard(canvas: HTMLCanvasElement, input: RenderCardInp
   if (shouldAbort?.()) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  // Everything below runs inside try/finally so the matching restore() is
+  // GUARANTEED — a throw between save() and restore() would otherwise leave
+  // the scale/clip applied to this canvas's persistent context forever, and
+  // every later render on it would then compound the scale (clearRect only
+  // clearing a shrinking top-left fraction), painting progressively smaller
+  // frames on top of never-cleared old ones. That exact failure mode
+  // happened once; the error itself still propagates to the caller, the
+  // context just can't be left corrupted anymore.
   ctx.save();
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.scale(canvas.width / CARD_LAYOUT.canvasW, canvas.height / CARD_LAYOUT.canvasH);
-  // Rounds the whole card's corners — applied first (before anything is
-  // drawn) so every layer below, including the black safety-net fill, is
-  // clipped to the same rounded shape rather than poking hard square
-  // corners out past it.
-  ctx.beginPath();
-  // [top-left, top-right, bottom-right, bottom-left]
-  ctx.roundRect(0, 0, CARD_LAYOUT.canvasW, CARD_LAYOUT.canvasH, [
-    CORNER_RADIUS_TOP,
-    CORNER_RADIUS_TOP,
-    CORNER_RADIUS_BOTTOM,
-    CORNER_RADIUS_BOTTOM,
-  ]);
-  ctx.clip();
-  // Safety net for the bleed margin around the outside of artSafeArea — the
-  // frame's cover-fit overflow (see drawCardFrame) should reach the true
-  // canvas edge, but that depends on the uploaded frame file's own aspect
-  // ratio, which varies. Filling black first means any thin sliver the
-  // frame doesn't quite cover shows as a plain black edge (matching a
-  // typical card border) instead of a transparent/white gap — and since
-  // that sliver sits inside MakePlayingCards' bleed-cut zone, it's
-  // discarded during trimming either way, so exact color-matching doesn't
-  // matter here, just not being blank.
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, CARD_LAYOUT.canvasW, CARD_LAYOUT.canvasH);
-  if (input.artImage) {
-    drawCardArt(ctx, input.artImage, input.artOffsetX, input.artOffsetY, input.artScale, CARD_LAYOUT.artSafeArea);
+  try {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(canvas.width / CARD_LAYOUT.canvasW, canvas.height / CARD_LAYOUT.canvasH);
+    // Rounds the whole card's corners — applied first (before anything is
+    // drawn) so every layer below, including the black safety-net fill, is
+    // clipped to the same rounded shape rather than poking hard square
+    // corners out past it.
+    ctx.beginPath();
+    // [top-left, top-right, bottom-right, bottom-left]
+    ctx.roundRect(0, 0, CARD_LAYOUT.canvasW, CARD_LAYOUT.canvasH, [
+      CORNER_RADIUS_TOP,
+      CORNER_RADIUS_TOP,
+      CORNER_RADIUS_BOTTOM,
+      CORNER_RADIUS_BOTTOM,
+    ]);
+    ctx.clip();
+    // Safety net for the bleed margin around the outside of artSafeArea — the
+    // frame's cover-fit overflow (see drawCardFrame) should reach the true
+    // canvas edge, but that depends on the uploaded frame file's own aspect
+    // ratio, which varies. Filling black first means any thin sliver the
+    // frame doesn't quite cover shows as a plain black edge (matching a
+    // typical card border) instead of a transparent/white gap — and since
+    // that sliver sits inside MakePlayingCards' bleed-cut zone, it's
+    // discarded during trimming either way, so exact color-matching doesn't
+    // matter here, just not being blank.
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, CARD_LAYOUT.canvasW, CARD_LAYOUT.canvasH);
+    const fitBox = getArtSafeArea(input.fullBleed);
+    if (input.artImage) {
+      drawCardArt(ctx, input.artImage, input.artOffsetX, input.artOffsetY, input.artScale, fitBox);
+    }
+    // Above the art, under the frame — the frame's border overlaps a box
+    // that runs to the card edge, per the reference design.
+    const nlTemplate = input.fields.template === 'nexusLord' || input.fields.template === 'nexusLordBack' ? input.fields.template : null;
+    if (input.nlRulesBoxImage && nlTemplate && input.fields.nlRulesBoxes?.length) {
+      drawNlRulesBoxBanners(ctx, input.nlRulesBoxImage, input.fields.nlRulesBoxes);
+    }
+    drawCardFrame(
+      ctx,
+      input.frameImage,
+      input.frameOffsetX ?? 0,
+      input.frameOffsetY ?? 0,
+      fitBox,
+      CARD_LAYOUT.canvasW,
+      CARD_LAYOUT.canvasH,
+    );
+    if (input.rarityEmblemImage) {
+      drawRarityEmblem(ctx, input.rarityEmblemImage, getRarityEmblemLayout());
+    }
+    if (input.nlStatIcons && nlTemplate) {
+      drawNexusLordStatIcons(ctx, input.nlStatIcons, nlTemplate, input.fields.affinity);
+    }
+    drawCardText(ctx, input.fields, input.iconImages ?? {});
+  } finally {
+    ctx.restore();
   }
-  drawCardFrame(
-    ctx,
-    input.frameImage,
-    input.frameOffsetX ?? 0,
-    input.frameOffsetY ?? 0,
-    CARD_LAYOUT.artSafeArea,
-    CARD_LAYOUT.canvasW,
-    CARD_LAYOUT.canvasH,
-  );
-  if (input.rarityEmblemImage) {
-    drawRarityEmblem(ctx, input.rarityEmblemImage, getRarityEmblemLayout());
-  }
-  drawCardText(ctx, input.fields, input.iconImages ?? {});
-  ctx.restore();
 }
 
 export async function renderCardToBlob(

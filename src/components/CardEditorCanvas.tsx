@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CardFrame } from '../net/cardFrames';
-import { CARD_LAYOUT, loadImage, renderCard, type CardTextFields, type IconImages } from '../cardEditor/compositor';
+import {
+  CARD_LAYOUT,
+  NL_RULES_BOX_X,
+  NL_RULES_BOX_W,
+  PRINT_TRIM_INSET,
+  loadImage,
+  renderCard,
+  type CardTextFields,
+  type IconImages,
+  type NexusLordStatIcons,
+  type NlRulesBox,
+} from '../cardEditor/compositor';
 
 // Live preview + art pan/zoom, rendered at a smaller size than the
 // eventual export (see compositor.ts's renderCard — it scales its layout
@@ -20,6 +31,12 @@ const PREVIEW_H = Math.round((PREVIEW_W * CARD_LAYOUT.canvasH) / CARD_LAYOUT.can
 // through as the canvas's dark background — a visible cue to zoom back in.
 export const MIN_ZOOM = 0.2;
 export const MAX_ZOOM = 4;
+// MPC's trim inset scaled to this preview's size — the outer band the
+// cutter physically removes. The preview masks it off by default (see
+// showBleed below) so what's on screen is the card as it'll exist after
+// printing; the export always keeps the full bleed regardless (MPC
+// requires it), this is purely a display choice.
+const TRIM_PREVIEW_INSET = Math.round((PRINT_TRIM_INSET * PREVIEW_W) / CARD_LAYOUT.canvasW);
 
 interface CardEditorCanvasProps {
   frame: CardFrame | null;
@@ -39,6 +56,21 @@ interface CardEditorCanvasProps {
    * handleArtUpload). Drop works even before a frame is uploaded, same as
    * the Upload Art button. */
   onDropFile?: (file: File) => void;
+  /** Full-bleed templates (Nexus Lord) — see RenderCardInput.fullBleed. */
+  fullBleed?: boolean;
+  /** Nexus Lord stat icons, loaded once by CardEditor.tsx — see
+   * RenderCardInput.nlStatIcons. */
+  nlStatIcons?: NexusLordStatIcons;
+  /** The floating ability boxes' banner image for this draft's
+   * affinity+side — see RenderCardInput.nlRulesBoxImage. */
+  nlRulesBoxImage?: HTMLImageElement | null;
+  /** The draft's floating ability boxes. When provided together with
+   * onNlRulesBoxChange, each box gets a draggable/resizable overlay handle
+   * on the preview (same drag pattern as TextLayoutEditor's field boxes) —
+   * this is how boxes are positioned, since unlike text fields their rects
+   * are per-draft, not shared layout. */
+  nlRulesBoxes?: NlRulesBox[];
+  onNlRulesBoxChange?: (index: number, rect: { x: number; y: number; w: number; h: number }) => void;
 }
 
 export function CardEditorCanvas({
@@ -53,6 +85,11 @@ export function CardEditorCanvas({
   fields,
   iconImages,
   onDropFile,
+  fullBleed,
+  nlStatIcons,
+  nlRulesBoxImage,
+  nlRulesBoxes,
+  onNlRulesBoxChange,
 }: CardEditorCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frameImage, setFrameImage] = useState<HTMLImageElement | null>(null);
@@ -60,6 +97,9 @@ export function CardEditorCanvas({
   const [rarityEmblemImage, setRarityEmblemImage] = useState<HTMLImageElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  // Default OFF: the preview shows only what survives MPC's cut. Ticking
+  // it reveals the full print file, bleed margin included.
+  const [showBleed, setShowBleed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,13 +170,16 @@ export function CardEditorCanvas({
         fields,
         rarityEmblemImage,
         iconImages,
+        fullBleed,
+        nlStatIcons,
+        nlRulesBoxImage,
       },
       () => cancelled,
     ).catch((err: unknown) => setLoadError(err instanceof Error ? err.message : 'Could not render preview.'));
     return () => {
       cancelled = true;
     };
-  }, [frameImage, artImage, rarityEmblemImage, frame, offsetX, offsetY, scale, fields, iconImages]);
+  }, [frameImage, artImage, rarityEmblemImage, frame, offsetX, offsetY, scale, fields, iconImages, fullBleed, nlStatIcons, nlRulesBoxImage]);
 
   // Pan: drag delta is measured in on-screen preview pixels, but
   // offsetX/offsetY are interpreted at the canonical CARD_LAYOUT
@@ -165,6 +208,41 @@ export function CardEditorCanvas({
     e.preventDefault();
     const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale - e.deltaY * 0.002));
     onChange(offsetX, offsetY, next);
+  };
+
+  // Height-adjust for the Nexus Lord floating ability boxes. Boxes can't be
+  // moved at all — their positions are fully derived (right-anchored at a
+  // fixed width, stacked upward from the bottom rules plaque at a fixed
+  // gap — see CardEditor.tsx's layoutNlRulesBoxes), so the only interaction
+  // is the grab bar on a box's TOP edge: each box's bottom is pinned to
+  // whatever it stacks on, meaning extra height grows upward, which is the
+  // edge the handle drags. The emitted rect's x/y/w are placeholders — the
+  // caller re-derives every box's position from the new height.
+  const boxDragRef = useRef<{ index: number; startY: number; start: NlRulesBox } | null>(null);
+  const MIN_BOX_H = 40;
+  const handleBoxResizeDown = (e: React.PointerEvent<HTMLDivElement>, index: number) => {
+    if (!nlRulesBoxes) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    boxDragRef.current = { index, startY: e.clientY, start: nlRulesBoxes[index] };
+  };
+  const handleBoxResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = boxDragRef.current;
+    if (!drag || !onNlRulesBoxChange) return;
+    e.stopPropagation();
+    // Dragging the top edge up (negative dy) makes the box taller.
+    const dy = (e.clientY - drag.startY) * toCanonical;
+    const { start } = drag;
+    onNlRulesBoxChange(drag.index, {
+      x: NL_RULES_BOX_X,
+      y: start.y,
+      w: NL_RULES_BOX_W,
+      h: Math.round(Math.max(MIN_BOX_H, start.h - dy)),
+    });
+  };
+  const handleBoxResizeUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (boxDragRef.current) e.stopPropagation();
+    boxDragRef.current = null;
   };
 
   // Standard drag-and-drop dance: dragover must be prevented for drop to
@@ -203,6 +281,34 @@ export function CardEditorCanvas({
         onPointerUp={handlePointerUp}
         onWheel={handleWheel}
       />
+      {nlRulesBoxes &&
+        onNlRulesBoxChange &&
+        nlRulesBoxes.map((box, i) => (
+          <div
+            key={i}
+            className="card-editor-rules-box-handle"
+            style={{
+              left: box.x / toCanonical,
+              top: box.y / toCanonical,
+              width: box.w / toCanonical,
+              height: box.h / toCanonical,
+            }}
+          >
+            <span className="card-editor-rules-box-handle-label">Box {i + 1}</span>
+            <div
+              className="card-editor-rules-box-resize"
+              onPointerDown={(e) => handleBoxResizeDown(e, i)}
+              onPointerMove={handleBoxResizeMove}
+              onPointerUp={handleBoxResizeUp}
+            />
+          </div>
+        ))}
+      {!showBleed && (
+        <div
+          className="card-editor-trim-mask"
+          style={{ width: PREVIEW_W, height: PREVIEW_H, borderWidth: TRIM_PREVIEW_INSET }}
+        />
+      )}
       {!frame && <div className="card-editor-canvas-overlay">No frame uploaded for this affinity yet — see Frame Library.</div>}
       {frame && !artImage && <div className="card-editor-canvas-hint">Upload art or drag an image here to position it.</div>}
       {isDragOver && <div className="card-editor-canvas-drag-hint">Drop to upload</div>}
@@ -220,6 +326,10 @@ export function CardEditorCanvas({
           />
         </label>
       )}
+      <label className="card-editor-checkbox card-editor-bleed-toggle" title="The outer margin MakePlayingCards cuts off during production">
+        <input type="checkbox" checked={showBleed} onChange={(e) => setShowBleed(e.target.checked)} />
+        Show bleed margin (trimmed off in print)
+      </label>
     </div>
   );
 }

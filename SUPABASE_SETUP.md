@@ -488,6 +488,43 @@ select conname from pg_constraint where conrelid = 'public.card_frames'::regclas
 
 and substitute it in.
 
+### Nexus Lord frame class (`nexusLord`)
+
+Nexus Lords use a third, structurally different frame template: **full bleed** — no black border at all, the art reaches the physical card edge and the decorative frame floats within it — with a name plate, three stat circles (Intelligence/Leadership/Health), and a bottom rules plaque instead of the regular card layout. Run this to allow the new class value (it re-declares the same check constraint from above with the third value added):
+
+```sql
+alter table public.card_frames drop constraint if exists card_frames_card_class_check;
+alter table public.card_frames add constraint card_frames_card_class_check
+  check (card_class in ('creature', 'noncreature', 'nexusLord', 'nexusLordBack'));
+```
+
+(`nexusLordBack` is the ascended back face — same full-bleed structure plus a fourth Attack stat circle, one frame per affinity per face, uploaded via Frame Library → "Nexus Lord — Back". If you ran an earlier version of this migration without it, just re-run the statement above.)
+
+Upload the frame via Frame Library → Card Class: "Nexus Lord (full bleed)". The stat icons (book/crown/heart in the smaller circles) are NOT part of the frame image — upload each once via that same screen's Stat Icons panel and the app composites them, so each icon's position can be fine-tuned individually via the Text Layout tab (the "NL: … Icon" fields) without re-exporting frame art. They're stored at fixed paths (`nl-stat-icons/<stat>.png`) in the existing `card-editor-assets` bucket — no table or migration involved.
+
+### Nexus Lord stats (`intelligence`, `leadership`, `health`, `attack`)
+
+The stat circle values, edited on the Card Editor's Nexus Lords tab. Each lord has two drafts — front face (type `Nexus Lord`) and ascended back face (type `Nexus Lord Back`); Attack only exists on the back:
+
+```sql
+alter table public.card_drafts add column if not exists intelligence int;
+alter table public.card_drafts add column if not exists leadership int;
+alter table public.card_drafts add column if not exists health int;
+alter table public.card_drafts add column if not exists attack int;
+```
+
+Without this migration, the Nexus Lords tab renders but saving a Nexus Lord draft fails with a column-not-found error.
+
+### Nexus Lord floating rules boxes (`nl_rules_boxes`)
+
+The template's floating ability boxes — up to 3 per face, each a banner strip (semi-transparent middle the art shows through) carrying its own rules text, positioned per-card by dragging on the preview. Stored as one jsonb list on the draft (`[{x, y, w, h, text}, …]`):
+
+```sql
+alter table public.card_drafts add column if not exists nl_rules_boxes jsonb not null default '[]';
+```
+
+Without this migration, **every** draft save fails (the app always writes the column), so run it with the other two above. The banner artwork itself is uploaded per affinity (and per card face) via Frame Library → Nexus Lord class → "Rules Box Banner" — stored at fixed paths (`nl-rules-boxes/<affinity>-<side>.png`) in the existing bucket, no table involved, same as the stat icons.
+
 ### Art is full-bleed, not window-clipped
 
 Art renders behind the entire frame, not clipped to a per-frame rectangle — the frame image itself is expected to have a mostly-transparent center (border/name-plate/etc. opaque) so the art shows through everywhere the frame doesn't cover. That makes the old per-frame art-window rectangle unnecessary — drop it:

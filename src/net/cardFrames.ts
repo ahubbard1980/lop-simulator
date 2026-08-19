@@ -2,12 +2,18 @@ import type { Affinity } from '../data/affinities';
 import { supabase } from './supabaseClient';
 
 // Creature cards need a power/toughness badge on the frame; every other
-// primary type doesn't — so each affinity needs two frame templates, not
-// one. See cardDrafts.ts's isCreatureCardType for the type-to-class mapping.
-// Rarity is NOT a frame dimension — it's a small set-specific emblem image
-// composited on top (see rarityEmblems.ts), since the frame itself doesn't
-// change per rarity, only per affinity+class.
-export type CardFrameClass = 'creature' | 'noncreature';
+// regular primary type doesn't — so each affinity needs two frame templates,
+// not one. 'nexusLord' (the front face) and 'nexusLordBack' (the ascended
+// back, which adds an Attack stat circle) are structurally different
+// classes: full-bleed templates (no black border — art reaches the bleed
+// edge, the decorative frame floats within it) with the name plate/stat
+// circles/rules plaque layout instead of the regular card's, one uploaded
+// frame per affinity per face. See cardDrafts.ts's cardClassOf for the
+// type-to-class mapping. Rarity is NOT a frame dimension — it's a small
+// set-specific emblem image composited on top (see rarityEmblems.ts), since
+// the frame itself doesn't change per rarity, only per affinity+class (and
+// Nexus Lords print no rarity emblem at all).
+export type CardFrameClass = 'creature' | 'noncreature' | 'nexusLord' | 'nexusLordBack';
 
 // One uploaded frame image per affinity+class — see cardDrafts.ts for the
 // same select/upsert/delete shape this mirrors. No art-window geometry:

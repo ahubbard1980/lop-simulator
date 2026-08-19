@@ -1,9 +1,11 @@
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
-import { isCreatureCardType, type CardDraft } from '../net/cardDrafts';
+import { cardClassOf, type CardDraft } from '../net/cardDrafts';
 import type { CardFrame } from '../net/cardFrames';
 import type { RarityEmblem } from '../net/rarityEmblems';
 import { getAssetUrl } from '../net/storageAssets';
+import { loadNlStatIcons } from '../net/nlStatIcons';
+import { loadNlRulesBoxImage } from '../net/nlRulesBoxes';
 import { CARD_LAYOUT, loadImage, renderCardToBlob, type CardTextFields, type IconImages } from './compositor';
 
 // Shared with the live-preview render path in CardEditor.tsx — kept here
@@ -20,12 +22,61 @@ export function resolveCopyrightText(set: string | undefined, settings: Record<s
   return settings.__default__;
 }
 
+export function isNexusLordDraft(draft: CardDraft): boolean {
+  return draft.type === 'Nexus Lord' || draft.type === 'Nexus Lord Back';
+}
+
+// Which face a Nexus Lord draft renders — drives the template (nl* vs nlb*
+// field sets), the frame class, and which per-affinity banner loads.
+export function nlDraftSide(draft: CardDraft): 'front' | 'back' {
+  return draft.type === 'Nexus Lord Back' ? 'back' : 'front';
+}
+
+// The one CardDraft -> CardTextFields mapping, shared by the live preview,
+// Mark Ready, and downloads (previously built inline in each) — a Nexus
+// Lord draft maps onto the nl* template's field set (no type line, cost,
+// flavor, power/toughness, artist credit, or copyright line; just name,
+// stats, and rules text), everything else onto the regular card layout.
+// See compositor.ts's drawCardText for how `template` switches which
+// layouts draw.
+export function buildCardFields(draft: CardDraft, copyrightSettings: Record<string, string>): CardTextFields {
+  if (isNexusLordDraft(draft)) {
+    const back = nlDraftSide(draft) === 'back';
+    return {
+      template: back ? 'nexusLordBack' : 'nexusLord',
+      name: draft.name,
+      rulesText: draft.rulesText,
+      attack: back ? draft.attack : undefined,
+      intelligence: draft.intelligence,
+      leadership: draft.leadership,
+      health: draft.health,
+      nlRulesBoxes: draft.nlRulesBoxes,
+      affinity: draft.affinity,
+    };
+  }
+  return {
+    name: draft.name,
+    typeLine: buildTypeLine(draft),
+    cost: draft.cost,
+    rulesText: draft.rulesText,
+    flavorText: draft.showFlavorText ? draft.flavorText : undefined,
+    power: draft.power,
+    toughness: draft.toughness,
+    artistName: draft.artistName,
+    copyrightText: resolveCopyrightText(draft.set, copyrightSettings),
+    affinity: draft.affinity,
+  };
+}
+
 function resolveFrameFor(draft: CardDraft, frames: CardFrame[]): CardFrame | null {
-  const cardClass = isCreatureCardType(draft.type) ? 'creature' : 'noncreature';
+  const cardClass = cardClassOf(draft.type);
   return frames.find((f) => f.affinity === draft.affinity && f.cardClass === cardClass) ?? null;
 }
 
 function resolveEmblemFor(draft: CardDraft, emblems: RarityEmblem[]): RarityEmblem | null {
+  // Nexus Lords print no rarity emblem — the full-bleed template has no
+  // slot for one, whatever the draft's rarity field happens to hold.
+  if (isNexusLordDraft(draft)) return null;
   if (!draft.rarity || !draft.set) return null;
   return emblems.find((e) => e.set === draft.set && e.rarity === draft.rarity) ?? null;
 }
@@ -54,23 +105,16 @@ export async function renderDraftToPrintPng(
   const frameUrl = await getAssetUrl(frame.storagePath);
   if (!frameUrl) return null;
   const emblem = resolveEmblemFor(draft, rarityEmblems);
-  const [frameImage, artImage, rarityEmblemImage] = await Promise.all([
+  const [frameImage, artImage, rarityEmblemImage, nlStatIcons, nlRulesBoxImage] = await Promise.all([
     loadImage(frameUrl),
     draft.artStoragePath ? getAssetUrl(draft.artStoragePath).then((u) => (u ? loadImage(u) : null)) : Promise.resolve(null),
     emblem ? getAssetUrl(emblem.storagePath).then((u) => (u ? loadImage(u) : null)) : Promise.resolve(null),
+    isNexusLordDraft(draft) ? loadNlStatIcons(nlDraftSide(draft)) : Promise.resolve(undefined),
+    isNexusLordDraft(draft) && draft.nlRulesBoxes.length > 0
+      ? loadNlRulesBoxImage(draft.affinity, nlDraftSide(draft))
+      : Promise.resolve(null),
   ]);
-  const fields: CardTextFields = {
-    name: draft.name,
-    typeLine: buildTypeLine(draft),
-    cost: draft.cost,
-    rulesText: draft.rulesText,
-    flavorText: draft.showFlavorText ? draft.flavorText : undefined,
-    power: draft.power,
-    toughness: draft.toughness,
-    artistName: draft.artistName,
-    copyrightText: resolveCopyrightText(draft.set, copyrightSettings),
-    affinity: draft.affinity,
-  };
+  const fields: CardTextFields = buildCardFields(draft, copyrightSettings);
   return renderCardToBlob(
     {
       frameImage,
@@ -83,6 +127,9 @@ export async function renderDraftToPrintPng(
       fields,
       rarityEmblemImage,
       iconImages,
+      fullBleed: isNexusLordDraft(draft),
+      nlStatIcons,
+      nlRulesBoxImage,
     },
     { width: CARD_LAYOUT.canvasW, height: CARD_LAYOUT.canvasH, type: 'image/png' },
   );

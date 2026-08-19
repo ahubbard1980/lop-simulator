@@ -6,7 +6,9 @@ import {
   CARD_LAYOUT,
   PRINT_TRIM_AREA,
   PRINT_SAFE_AREA,
-  TEXT_FIELD_NAMES,
+  REGULAR_TEXT_FIELD_NAMES,
+  NEXUS_LORD_TEXT_FIELD_NAMES,
+  NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
   FRAME_ELEMENT_NAMES,
   FRAME_ELEMENT_LAYOUT,
   getTextFieldGeometry,
@@ -17,9 +19,13 @@ import {
   renderCard,
   type TextFieldName,
   type FrameElementName,
+  type NexusLordStatIcons,
 } from '../cardEditor/compositor';
 import { listTextLayoutOverrides } from '../net/cardTextLayout';
 import { listFrameElementOverrides, saveFrameElementGeometry, deleteFrameElementGeometry } from '../net/frameElementLayout';
+import { loadNlStatIcons, uploadNlStatIcon, nlStatKeysFor, NL_STAT_LABELS, type NlStatKey } from '../net/nlStatIcons';
+import { loadNlRulesBoxImage, uploadNlRulesBoxImage } from '../net/nlRulesBoxes';
+import { listCardIcons, type CardIcon } from '../net/cardIcons';
 
 interface Geometry {
   x: number;
@@ -31,7 +37,15 @@ interface Geometry {
 const CARD_CLASSES: { value: CardFrameClass; label: string }[] = [
   { value: 'creature', label: 'Creature' },
   { value: 'noncreature', label: 'Non-Creature' },
+  { value: 'nexusLord', label: 'Nexus Lord — Front' },
+  { value: 'nexusLordBack', label: 'Nexus Lord — Back' },
 ];
+// Both Nexus Lord faces share the full-bleed handling (no border guide, no
+// element guide, stat icons + banner panels) — only which field set/banner
+// side applies differs.
+function isNexusLordClass(cardClass: CardFrameClass): boolean {
+  return cardClass === 'nexusLord' || cardClass === 'nexusLordBack';
+}
 // Compact labels for the text-position guide overlay below — space is
 // tight inside small boxes like Cost/Power/Toughness, so these are shorter
 // than TextLayoutEditor's own FIELD_LABELS.
@@ -46,6 +60,24 @@ const TEXT_GUIDE_LABELS: Record<TextFieldName, string> = {
   toughness: 'Toughness',
   artist: 'Artist',
   copyright: 'Copyright',
+  nlName: 'Name',
+  nlIntelligence: 'Int',
+  nlLeadership: 'Ldr',
+  nlHealth: 'Health',
+  nlRulesText: 'Rules',
+  nlIntelligenceIcon: 'Int Icon',
+  nlLeadershipIcon: 'Ldr Icon',
+  nlHealthIcon: 'Health Icon',
+  nlbName: 'Name',
+  nlbAttack: 'Atk',
+  nlbIntelligence: 'Int',
+  nlbLeadership: 'Ldr',
+  nlbHealth: 'Health',
+  nlbRulesText: 'Rules',
+  nlbAttackIcon: 'Atk Icon',
+  nlbIntelligenceIcon: 'Int Icon',
+  nlbLeadershipIcon: 'Ldr Icon',
+  nlbHealthIcon: 'Health Icon',
 };
 const FRAME_ELEMENT_LABELS: Record<FrameElementName, string> = {
   nameplate: 'Name Plate',
@@ -98,6 +130,10 @@ const PRINT_SAFE_PREVIEW = {
   width: PRINT_SAFE_AREA.w * TO_PREVIEW_X,
   height: PRINT_SAFE_AREA.h * TO_PREVIEW_Y,
 };
+// Same trim-line mask CardEditorCanvas offers, opt-in here (this tab's
+// whole job is aligning frame files, so it defaults to showing the full
+// upload including bleed).
+const TRIM_MASK_INSET = Math.round(PRINT_TRIM_AREA.x * TO_PREVIEW_X);
 // Canonical (744x1038-space) pixels per click — fine enough for precise
 // alignment without needing dozens of clicks to cross a visible gap.
 const NUDGE_STEP = 2;
@@ -121,6 +157,7 @@ export function CardFrameLibrary() {
   const [textGuideReady, setTextGuideReady] = useState(false);
   const [showElementGuide, setShowElementGuide] = useState(true);
   const [showPrintGuide, setShowPrintGuide] = useState(false);
+  const [previewTrimmed, setPreviewTrimmed] = useState(false);
   const [selectedElement, setSelectedElement] = useState<FrameElementName>('nameplate');
   const [elementGeometry, setElementGeometry] = useState<Record<FrameElementName, Geometry>>(() => {
     const initial = {} as Record<FrameElementName, Geometry>;
@@ -130,7 +167,27 @@ export function CardFrameLibrary() {
     return initial;
   });
   const [savingElement, setSavingElement] = useState(false);
+  // The Nexus Lord template's three stat icons — uploaded here (Stat Icons
+  // panel, shown for the nexusLord class) and composited into the preview so
+  // uploads can be judged in place. See net/nlStatIcons.ts.
+  const [nlStatIcons, setNlStatIcons] = useState<NexusLordStatIcons>({});
+  const [uploadingStatIcon, setUploadingStatIcon] = useState<NlStatKey | null>(null);
+  // The inline-text Icon Library's own icons (see net/cardIcons.ts) — listed
+  // here so a stat slot can copy an already-uploaded icon (e.g. the same
+  // intelligence/leadership glyphs regular cards' rules text uses) instead
+  // of requiring a fresh upload of the identical file.
+  const [cardIcons, setCardIcons] = useState<CardIcon[]>([]);
+  // The floating ability boxes' banner for the currently-selected affinity
+  // (front side) — affinity-specific unlike the shared stat icons, so it
+  // reloads on every affinity change. See net/nlRulesBoxes.ts.
+  const [nlRulesBoxImage, setNlRulesBoxImage] = useState<HTMLImageElement | null>(null);
+  const [uploadingRulesBox, setUploadingRulesBox] = useState(false);
+  const rulesBoxInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const statIconInputRef = useRef<HTMLInputElement>(null);
+  // Which stat the hidden shared file input is currently uploading for —
+  // set by the row's button right before triggering the picker.
+  const pendingStatIconRef = useRef<NlStatKey | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const elementSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elementDragRef = useRef<{ mode: 'move' | 'resize'; startX: number; startY: number; start: Geometry } | null>(null);
@@ -141,6 +198,95 @@ export function CardFrameLibrary() {
       .catch((err: unknown) => setMessage(err instanceof Error ? err.message : 'Could not load frames.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Caught to [] rather than surfacing an error — the copy-from-library
+    // dropdown just offers nothing if the icons table isn't reachable; the
+    // upload path still works.
+    listCardIcons()
+      .then((icons) => {
+        if (!cancelled) setCardIcons(icons);
+      })
+      .catch(() => {
+        if (!cancelled) setCardIcons([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Which face's assets this class edits — the two NL classes map straight
+  // onto the two sides, for both the banner and the stat icon set (each
+  // face keeps its own icon art).
+  const nlSide = cardClass === 'nexusLordBack' ? ('back' as const) : ('front' as const);
+  useEffect(() => {
+    let cancelled = false;
+    setNlRulesBoxImage(null);
+    setNlStatIcons({});
+    if (!isNexusLordClass(cardClass)) return;
+    loadNlRulesBoxImage(affinity, nlSide).then((img) => {
+      if (!cancelled) setNlRulesBoxImage(img);
+    });
+    loadNlStatIcons(nlSide).then((icons) => {
+      if (!cancelled) setNlStatIcons(icons);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [affinity, cardClass, nlSide]);
+
+  const handleRulesBoxUpload = async (file: File) => {
+    setUploadingRulesBox(true);
+    setMessage(null);
+    try {
+      await uploadNlRulesBoxImage(affinity, nlSide, file);
+      setNlRulesBoxImage(await loadNlRulesBoxImage(affinity, nlSide));
+      setMessage(`${affinity} ${nlSide} rules box banner saved.`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Banner upload failed.');
+    } finally {
+      setUploadingRulesBox(false);
+    }
+  };
+
+  const handleStatIconUpload = async (stat: NlStatKey, file: File) => {
+    setUploadingStatIcon(stat);
+    setMessage(null);
+    try {
+      await uploadNlStatIcon(stat, nlSide, file);
+      setNlStatIcons(await loadNlStatIcons(nlSide));
+      setMessage(`${NL_STAT_LABELS[stat]} icon (${nlSide}) saved.`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Icon upload failed.');
+    } finally {
+      setUploadingStatIcon(null);
+    }
+  };
+
+  // Copies an Icon Library icon's image into the stat slot's own fixed
+  // storage path — a one-time copy, not a live link, so later replacing the
+  // rules-text icon never silently changes the card template (and vice
+  // versa). Deliberate: the two uses have different tuning needs (inline
+  // icons carry per-icon yNudge/sizeScale for text flow; stat icons are
+  // positioned via their own layout boxes).
+  const handleStatIconCopy = async (stat: NlStatKey, icon: CardIcon) => {
+    setUploadingStatIcon(stat);
+    setMessage(null);
+    try {
+      const url = await getAssetUrl(icon.storagePath);
+      if (!url) throw new Error(`Could not resolve the "${icon.key}" icon's image.`);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Could not fetch the "${icon.key}" icon's image.`);
+      await uploadNlStatIcon(stat, nlSide, await response.blob());
+      setNlStatIcons(await loadNlStatIcons(nlSide));
+      setMessage(`${NL_STAT_LABELS[stat]} icon (${nlSide}) copied from "${icon.key}".`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not copy that icon.');
+    } finally {
+      setUploadingStatIcon(null);
+    }
+  };
 
   // Loads the Text Layout tab's saved positions independently, same defensive
   // pattern as TextLayoutEditor.tsx — this tab needs the *current* positions
@@ -167,13 +313,21 @@ export function CardFrameLibrary() {
     };
   }, []);
 
-  // Recomputed on every render (cheap — 10 field lookups), so it always
-  // reflects whatever's currently live, including edits made in the Text
-  // Layout tab during this same session. textGuideReady is otherwise unused
-  // beyond forcing the first post-fetch re-render.
+  // Recomputed on every render (cheap — a handful of field lookups), so it
+  // always reflects whatever's currently live, including edits made in the
+  // Text Layout tab during this same session. textGuideReady is otherwise
+  // unused beyond forcing the first post-fetch re-render. Shows the field
+  // set matching the selected class — overlaying the regular template's
+  // boxes on a Nexus Lord frame (or vice versa) would just be noise.
   void textGuideReady;
+  const classTextFields =
+    cardClass === 'nexusLord'
+      ? NEXUS_LORD_TEXT_FIELD_NAMES
+      : cardClass === 'nexusLordBack'
+        ? NEXUS_LORD_BACK_TEXT_FIELD_NAMES
+        : REGULAR_TEXT_FIELD_NAMES;
   const textGuideBoxes = showTextGuide
-    ? TEXT_FIELD_NAMES.map((name) => {
+    ? classTextFields.map((name) => {
         const g = getTextFieldGeometry(name);
         return {
           name,
@@ -220,7 +374,11 @@ export function CardFrameLibrary() {
     setFrameElementOverrides(elementGeometry);
   }, [elementGeometry]);
 
-  const elementBoxes = showElementGuide
+  // The frame-element guide is traced against the regular card template
+  // (nameplate/cost circle/rules plaque/P&T badges) — none of those exist
+  // on the Nexus Lord frame, so the guide hides for that class entirely.
+  const elementGuideActive = showElementGuide && !isNexusLordClass(cardClass);
+  const elementBoxes = elementGuideActive
     ? FRAME_ELEMENT_NAMES.map((name) => {
         const g = elementGeometry[name];
         return {
@@ -368,14 +526,22 @@ export function CardFrameLibrary() {
         artOffsetX: 0,
         artOffsetY: 0,
         artScale: 1,
-        fields: { name: '' },
+        // template drives which field layouts apply AND whether the stat
+        // icons composite (renderCard gates them on it) — name stays empty
+        // so no text draws, this preview is about the frame itself.
+        fields: {
+          name: '',
+          template: cardClass === 'nexusLord' ? 'nexusLord' : cardClass === 'nexusLordBack' ? 'nexusLordBack' : undefined,
+        },
+        fullBleed: isNexusLordClass(cardClass),
+        nlStatIcons: isNexusLordClass(cardClass) ? nlStatIcons : undefined,
       },
       () => cancelled,
     ).catch((err: unknown) => setMessage(err instanceof Error ? err.message : 'Could not render preview.'));
     return () => {
       cancelled = true;
     };
-  }, [frameImage, offsetX, offsetY]);
+  }, [frameImage, offsetX, offsetY, cardClass, nlStatIcons]);
 
   // Nudging auto-saves (debounced) rather than requiring a separate "Save"
   // click — every other action on this screen (upload, emblem upload)
@@ -498,7 +664,7 @@ export function CardFrameLibrary() {
             >
               <canvas ref={canvasRef} width={PREVIEW_W} height={PREVIEW_H} className="card-frame-preview-canvas" />
               {!frameImage && <div className="card-editor-canvas-overlay">Upload a frame image to begin.</div>}
-              <div className="card-frame-safe-area" style={SAFE_AREA_PREVIEW} />
+              {!isNexusLordClass(cardClass) && <div className="card-frame-safe-area" style={SAFE_AREA_PREVIEW} />}
               {textGuideBoxes.map((box) => (
                 <div key={box.name} className="card-frame-text-guide" style={{ left: box.left, top: box.top, width: box.width, height: box.height }}>
                   <span className="card-frame-text-guide-label">{TEXT_GUIDE_LABELS[box.name]}</span>
@@ -515,7 +681,7 @@ export function CardFrameLibrary() {
                     <span className="card-frame-element-guide-label">{FRAME_ELEMENT_LABELS[box.name]}</span>
                   </div>
                 ))}
-              {showElementGuide && (
+              {elementGuideActive && (
                 <div
                   className="card-frame-element-guide card-frame-element-guide-active"
                   tabIndex={0}
@@ -534,6 +700,9 @@ export function CardFrameLibrary() {
               )}
               {showPrintGuide && <div className="card-editor-print-safe" style={PRINT_SAFE_PREVIEW} />}
               {showPrintGuide && <div className="card-editor-print-trim" style={PRINT_TRIM_PREVIEW} />}
+              {previewTrimmed && (
+                <div className="card-editor-trim-mask" style={{ width: PREVIEW_W, height: PREVIEW_H, borderWidth: TRIM_MASK_INSET }} />
+              )}
             </div>
             <label className="card-editor-checkbox">
               <input type="checkbox" checked={showTextGuide} onChange={(e) => setShowTextGuide(e.target.checked)} />
@@ -543,15 +712,31 @@ export function CardFrameLibrary() {
               <input type="checkbox" checked={showPrintGuide} onChange={(e) => setShowPrintGuide(e.target.checked)} />
               Show print trim/safe area (MakePlayingCards)
             </label>
-            <p className="card-editor-hint">
-              Art is drawn full-bleed behind this frame, so the frame image should have a mostly-transparent center — only the
-              border/name-plate/etc. should be opaque. The dashed gold line is a guide for where the black border should sit.
-              The blue text-field boxes are sized for shrink-to-fit padding, not the frame's visual edges — use the Frame
-              Element Guide (right) instead to line up the actual nameplate/cost circle/rules plaque/P&amp;T badges. The
-              red/orange print guide shows MakePlayingCards' real cut line and safe margin — anything from the frame's own
-              artwork outside the red line gets physically trimmed off. Rarity isn't set here — see the Rarity Emblems tab; the
-              same {cardClass} frame is used for every rarity within {affinity}.
-            </p>
+            <label className="card-editor-checkbox">
+              <input type="checkbox" checked={previewTrimmed} onChange={(e) => setPreviewTrimmed(e.target.checked)} />
+              Preview trimmed card (hide bleed margin)
+            </label>
+            {isNexusLordClass(cardClass) ? (
+              <p className="card-editor-hint">
+                Nexus Lord frames are full bleed: there's no black border, so the whole file — including its own baked-in
+                margin around the decorative border — is stretched (cover-fit) across the entire print canvas, and the art
+                behind it reaches the bleed edge. Upload the frame export with its transparent center and its natural margin
+                intact — one per affinity for each face; the {cardClass === 'nexusLordBack' ? 'back adds the fourth (Attack) stat circle' : 'front carries the three stat circles'}.
+                Stat icons upload separately below. The red/orange print guide shows MakePlayingCards' real cut line and
+                safe margin — after trimming, everything outside the red line is gone, so the decorative border must sit
+                safely inside it.
+              </p>
+            ) : (
+              <p className="card-editor-hint">
+                Art is drawn full-bleed behind this frame, so the frame image should have a mostly-transparent center — only the
+                border/name-plate/etc. should be opaque. The dashed gold line is a guide for where the black border should sit.
+                The blue text-field boxes are sized for shrink-to-fit padding, not the frame's visual edges — use the Frame
+                Element Guide (right) instead to line up the actual nameplate/cost circle/rules plaque/P&amp;T badges. The
+                red/orange print guide shows MakePlayingCards' real cut line and safe margin — anything from the frame's own
+                artwork outside the red line gets physically trimmed off. Rarity isn't set here — see the Rarity Emblems tab; the
+                same {cardClass} frame is used for every rarity within {affinity}.
+              </p>
+            )}
           </div>
 
           <div className="card-frame-nudge-panel">
@@ -587,6 +772,106 @@ export function CardFrameLibrary() {
             </p>
           </div>
 
+          {isNexusLordClass(cardClass) && (
+            <div className="card-frame-stat-icon-panel">
+              <span className="card-editor-filter-label">Stat Icons</span>
+              <input
+                ref={statIconInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  const stat = pendingStatIconRef.current;
+                  if (file && stat) void handleStatIconUpload(stat, file);
+                  e.target.value = '';
+                }}
+              />
+              {nlStatKeysFor(nlSide).map((stat) => (
+                <div key={stat} className="card-frame-stat-icon-slot">
+                  <div className="card-frame-stat-icon-row">
+                    {nlStatIcons[stat] ? (
+                      <img className="card-frame-stat-icon-thumb" src={nlStatIcons[stat]!.src} alt={NL_STAT_LABELS[stat]} />
+                    ) : (
+                      <span className="card-frame-stat-icon-thumb card-frame-stat-icon-thumb-empty" />
+                    )}
+                    <span className="card-frame-stat-icon-label">{NL_STAT_LABELS[stat]}</span>
+                    <button
+                      type="button"
+                      className="btn-gray"
+                      disabled={uploadingStatIcon !== null}
+                      onClick={() => {
+                        pendingStatIconRef.current = stat;
+                        statIconInputRef.current?.click();
+                      }}
+                    >
+                      {uploadingStatIcon === stat ? 'Working…' : nlStatIcons[stat] ? 'Replace' : 'Upload'}
+                    </button>
+                  </div>
+                  {cardIcons.length > 0 && (
+                    <select
+                      className="card-frame-stat-icon-copy"
+                      value=""
+                      disabled={uploadingStatIcon !== null}
+                      aria-label={`Copy ${NL_STAT_LABELS[stat]} icon from Icon Library`}
+                      onChange={(e) => {
+                        const icon = cardIcons.find((i) => i.id === e.target.value);
+                        if (icon) void handleStatIconCopy(stat, icon);
+                      }}
+                    >
+                      <option value="">Copy from Icon Library…</option>
+                      {cardIcons.map((icon) => (
+                        <option key={icon.id} value={icon.id}>
+                          {icon.key}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              ))}
+              <p className="card-editor-hint">
+                The icons drawn in the small stat circles — shared by every affinity, but each FACE keeps its own set
+                (these are the {nlSide} side's; switch Card Class to edit the other face's). Upload each once (transparent
+                background), or copy one already uploaded to the Icon Library (a one-time copy — replacing the Icon Library
+                version later won't change this template). Position each via the Text Layout tab's
+                "{nlSide === 'back' ? 'Back' : 'Front'}: … Icon" fields; they render into the preview here as soon as
+                they're set.
+              </p>
+
+              <span className="card-editor-filter-label">Rules Box Banner</span>
+              <input
+                ref={rulesBoxInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleRulesBoxUpload(file);
+                  e.target.value = '';
+                }}
+              />
+              <div className="card-frame-stat-icon-row">
+                {nlRulesBoxImage ? (
+                  <img className="card-frame-stat-icon-thumb" src={nlRulesBoxImage.src} alt={`${affinity} rules box banner`} />
+                ) : (
+                  <span className="card-frame-stat-icon-thumb card-frame-stat-icon-thumb-empty" />
+                )}
+                <span className="card-frame-stat-icon-label">
+                  {affinity} ({nlSide})
+                </span>
+                <button type="button" className="btn-gray" disabled={uploadingRulesBox} onClick={() => rulesBoxInputRef.current?.click()}>
+                  {uploadingRulesBox ? 'Uploading…' : nlRulesBoxImage ? 'Replace' : 'Upload'}
+                </button>
+              </div>
+              <p className="card-editor-hint">
+                The banner strip behind each floating rules box on this affinity's Nexus Lords — export with the ornamental
+                top/bottom bars and the semi-transparent middle intact (the art shows through it). One per affinity per
+                side; boxes themselves are placed per-card on the Nexus Lords tab.
+              </p>
+            </div>
+          )}
+
+          {!isNexusLordClass(cardClass) && (
           <div className="card-frame-element-panel">
             <span className="card-editor-filter-label">Frame Element Guide</span>
             <label className="card-editor-checkbox">
@@ -614,6 +899,7 @@ export function CardFrameLibrary() {
               (like this one), then use it to line up every other affinity's frame upload. Saves automatically.
             </p>
           </div>
+          )}
 
           {message && <div className="card-editor-message">{message}</div>}
         </div>

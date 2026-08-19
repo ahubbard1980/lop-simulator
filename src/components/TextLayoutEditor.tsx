@@ -4,6 +4,9 @@ import { SETS } from '../data/sets';
 import {
   CARD_LAYOUT,
   TEXT_FIELD_NAMES,
+  REGULAR_TEXT_FIELD_NAMES,
+  NEXUS_LORD_TEXT_FIELD_NAMES,
+  NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
   DEFAULT_LINE_HEIGHT_RATIO,
   getTextFieldGeometry,
   setTextLayoutOverrides,
@@ -14,8 +17,10 @@ import {
   type TextFieldName,
   type CardTextFields,
   type TextFieldLayout,
+  type NexusLordStatIcons,
 } from '../cardEditor/compositor';
 import { listCardFrames } from '../net/cardFrames';
+import { loadNlStatIcons } from '../net/nlStatIcons';
 import { getAssetUrl } from '../net/storageAssets';
 import {
   listTextLayoutOverrides,
@@ -51,7 +56,37 @@ const FIELD_LABELS: Record<TextFieldName, string> = {
   toughness: 'Toughness',
   artist: 'Artist',
   copyright: 'Copyright / Trademark',
+  nlName: 'Front: Name',
+  nlIntelligence: 'Front: Intelligence',
+  nlLeadership: 'Front: Leadership',
+  nlHealth: 'Front: Health',
+  nlRulesText: 'Front: Rules Text',
+  nlIntelligenceIcon: 'Front: Intelligence Icon',
+  nlLeadershipIcon: 'Front: Leadership Icon',
+  nlHealthIcon: 'Front: Health Icon',
+  nlbName: 'Back: Name',
+  nlbAttack: 'Back: Attack',
+  nlbIntelligence: 'Back: Intelligence',
+  nlbLeadership: 'Back: Leadership',
+  nlbHealth: 'Back: Health',
+  nlbRulesText: 'Back: Rules Text',
+  nlbAttackIcon: 'Back: Attack Icon',
+  nlbIntelligenceIcon: 'Back: Intelligence Icon',
+  nlbLeadershipIcon: 'Back: Leadership Icon',
+  nlbHealthIcon: 'Back: Health Icon',
 };
+
+// Which template a field belongs to decides which frame class the preview
+// renders against (and in which mode) — dragging a Nexus Lord field around
+// a regular creature frame would be aligning against the wrong picture.
+function fieldTemplate(name: TextFieldName): 'regular' | 'nexusLord' | 'nexusLordBack' {
+  if (NEXUS_LORD_TEXT_FIELD_NAMES.includes(name)) return 'nexusLord';
+  if (NEXUS_LORD_BACK_TEXT_FIELD_NAMES.includes(name)) return 'nexusLordBack';
+  return 'regular';
+}
+function isNexusLordField(name: TextFieldName): boolean {
+  return fieldTemplate(name) !== 'regular';
+}
 
 // null = editing the global/default position every affinity falls back to.
 // A specific affinity edits (or creates) its own override on top of that —
@@ -64,6 +99,19 @@ type AffinityOption = Affinity | null;
 // regardless of which real card draft (if any) you were last editing.
 const SAMPLE_FLAVOR = '"Sample flavor text, shown in italics-style font."';
 function sampleFields(selected: TextFieldName, affinity: AffinityOption): CardTextFields {
+  const template = fieldTemplate(selected);
+  if (template !== 'regular') {
+    return {
+      template,
+      name: 'Vekk, the Infinite Coil',
+      rulesText: 'When two or more sample creatures you control attack, choose a creature, it cannot block this turn.',
+      attack: template === 'nexusLordBack' ? 2 : undefined,
+      intelligence: 2,
+      leadership: 3,
+      health: 20,
+      affinity: affinity ?? undefined,
+    };
+  }
   return {
     name: 'Card Name',
     typeLine: 'Creature - Type',
@@ -120,6 +168,9 @@ export function TextLayoutEditor() {
   const [frames, setFrames] = useState<Awaited<ReturnType<typeof listCardFrames>>>([]);
   const [frameImageUrl, setFrameImageUrl] = useState<string | null>(null);
   const [frameImage, setFrameImage] = useState<HTMLImageElement | null>(null);
+  // Loaded once so the preview shows the real uploaded stat icons while
+  // their nl*Icon position fields are being dragged — see net/nlStatIcons.ts.
+  const [nlStatIcons, setNlStatIcons] = useState<NexusLordStatIcons>({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -185,6 +236,19 @@ export function TextLayoutEditor() {
     };
   }, []);
 
+  // Each face has its own icon set — reload whenever the selected field's
+  // template flips between front and back.
+  const previewSide = fieldTemplate(selected) === 'nexusLordBack' ? ('back' as const) : ('front' as const);
+  useEffect(() => {
+    let cancelled = false;
+    loadNlStatIcons(previewSide).then((icons) => {
+      if (!cancelled) setNlStatIcons(icons);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [previewSide]);
+
   useEffect(() => {
     let cancelled = false;
     listCopyrightTextSettings()
@@ -239,15 +303,27 @@ export function TextLayoutEditor() {
   // Picks which uploaded frame to preview against — prefers one matching
   // the currently selected affinity (so alignment is checked against the
   // frame it'll actually apply to), falling back to whatever's available if
-  // that affinity has no frame uploaded yet. Re-runs whenever the affinity
-  // selector changes, not just once at mount.
+  // that affinity has no frame uploaded yet. Nexus Lord fields preview
+  // against the nexusLord frame class specifically (never falling back to a
+  // regular frame — the layouts have nothing in common, so a fallback would
+  // just be misleading). Re-runs whenever the affinity selector or the
+  // selected field's template changes, not just once at mount.
+  const previewClass = fieldTemplate(selected) === 'regular' ? 'creature' : fieldTemplate(selected);
   useEffect(() => {
     let cancelled = false;
     const forAffinity = selectedAffinity ? frames.filter((f) => f.affinity === selectedAffinity) : frames;
-    const frame = forAffinity.find((f) => f.cardClass === 'creature') ?? forAffinity[0] ?? frames[0] ?? null;
+    const frame =
+      previewClass !== 'creature'
+        ? (forAffinity.find((f) => f.cardClass === previewClass) ?? frames.find((f) => f.cardClass === previewClass) ?? null)
+        : (forAffinity.find((f) => f.cardClass === 'creature') ?? forAffinity[0] ?? frames[0] ?? null);
     if (!frame) {
       setFrameImageUrl(null);
-      if (!loading) setMessage('No frame uploaded yet — upload one in Frame Library to preview text positions against it.');
+      if (!loading)
+        setMessage(
+          previewClass !== 'creature'
+            ? `No Nexus Lord ${previewClass === 'nexusLordBack' ? 'Back' : 'Front'} frame uploaded yet — upload one in Frame Library to preview against it.`
+            : 'No frame uploaded yet — upload one in Frame Library to preview text positions against it.',
+        );
       return;
     }
     getAssetUrl(frame.storagePath)
@@ -261,7 +337,7 @@ export function TextLayoutEditor() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frames, selectedAffinity]);
+  }, [frames, selectedAffinity, previewClass]);
 
   useEffect(() => {
     let cancelled = false;
@@ -293,13 +369,22 @@ export function TextLayoutEditor() {
     let cancelled = false;
     renderCard(
       canvas,
-      { frameImage, artImage: null, artOffsetX: 0, artOffsetY: 0, artScale: 1, fields: sampleFields(selected, selectedAffinity) },
+      {
+        frameImage,
+        artImage: null,
+        artOffsetX: 0,
+        artOffsetY: 0,
+        artScale: 1,
+        fields: sampleFields(selected, selectedAffinity),
+        fullBleed: isNexusLordField(selected),
+        nlStatIcons: isNexusLordField(selected) ? nlStatIcons : undefined,
+      },
       () => cancelled,
     ).catch((err: unknown) => setMessage(err instanceof Error ? err.message : 'Could not render preview.'));
     return () => {
       cancelled = true;
     };
-  }, [frameImage, selected, selectedAffinity, globalGeometry, affinityGeometry]);
+  }, [frameImage, selected, selectedAffinity, globalGeometry, affinityGeometry, nlStatIcons]);
 
   const updateSelectedGeometry = (geometry: Geometry) => {
     if (selectedAffinity) {
@@ -423,11 +508,27 @@ export function TextLayoutEditor() {
               if (!AFFINITY_AWARE_FIELDS.includes(next)) setSelectedAffinity(null);
             }}
           >
-            {TEXT_FIELD_NAMES.map((name) => (
-              <option key={name} value={name}>
-                {FIELD_LABELS[name]}
-              </option>
-            ))}
+            <optgroup label="Regular card">
+              {REGULAR_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {FIELD_LABELS[name]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Nexus Lord — Front">
+              {NEXUS_LORD_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {FIELD_LABELS[name]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Nexus Lord — Back">
+              {NEXUS_LORD_BACK_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {FIELD_LABELS[name]}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </label>
         {AFFINITY_AWARE_FIELDS.includes(selected) && (
@@ -459,7 +560,13 @@ export function TextLayoutEditor() {
             onPointerUp={handlePointerUp}
           >
             <canvas ref={canvasRef} width={PREVIEW_W} height={PREVIEW_H} className="text-layout-canvas" />
-            {TEXT_FIELD_NAMES.filter((name) => name !== selected).map((name) => {
+            {(fieldTemplate(selected) === 'nexusLord'
+              ? NEXUS_LORD_TEXT_FIELD_NAMES
+              : fieldTemplate(selected) === 'nexusLordBack'
+                ? NEXUS_LORD_BACK_TEXT_FIELD_NAMES
+                : REGULAR_TEXT_FIELD_NAMES)
+              .filter((name) => name !== selected)
+              .map((name) => {
               const g = effectiveGeometry(name, selectedAffinity);
               return (
                 <div

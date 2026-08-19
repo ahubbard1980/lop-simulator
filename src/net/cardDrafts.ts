@@ -1,5 +1,7 @@
 import type { Affinity } from '../data/affinities';
 import type { Rarity } from '../data/rarity';
+import type { NlRulesBox } from '../cardEditor/compositor';
+import type { CardFrameClass } from './cardFrames';
 import { supabase } from './supabaseClient';
 
 // The designer's actual card taxonomy — distinct from (and doesn't map 1:1
@@ -9,9 +11,11 @@ import { supabase } from './supabaseClient';
 // header comment below), so this is the editor's own source of truth for
 // what a card's primary type actually is; a resubmit step translates back
 // to the engine's CardType later. Nexus Lord is a valid category in the
-// game but not offered here — see CardEditor.tsx's PRIMARY_TYPES, which
-// deliberately excludes it since this form has no Nexus-Lord-shaped fields
-// (Intelligence/Leadership/Health/Attack, front/back sides) yet.
+// game but not offered here — see CardEditor.tsx's SPELL_TYPES/
+// LEYLINE_TYPES/TOKEN_TYPES (the three browse-section groupings), which
+// deliberately exclude it since none of those forms have Nexus-Lord-shaped
+// fields (Intelligence/Leadership/Health/Attack, front/back sides, multiple
+// template iterations) yet.
 export type PrimaryCardType =
   | 'Creature'
   | 'Champion Creature'
@@ -23,13 +27,16 @@ export type PrimaryCardType =
   | 'Ancient Relic'
   | 'Creature - Token'
   | 'Nexus Lord'
+  | 'Nexus Lord Back'
   | 'Basic Leyline'
   | 'Imbued Leyline';
 
-// Frame templates come in two shapes per affinity — creature frames need a
-// power/toughness badge, non-creature frames don't — see cardFrames.ts's
+// Frame templates come in three shapes per affinity — creature frames need
+// a power/toughness badge, non-creature frames don't, and Nexus Lords use a
+// structurally different full-bleed template — see cardFrames.ts's
 // CardFrameClass. This is the taxonomy-to-frame-shape mapping, used by
-// CardEditor.tsx to pick which uploaded frame applies to a given draft.
+// CardEditor.tsx and download.ts to pick which uploaded frame (and which
+// render mode/field set) applies to a given draft.
 const CREATURE_TYPES: ReadonlySet<PrimaryCardType> = new Set([
   'Creature',
   'Champion Creature',
@@ -38,6 +45,11 @@ const CREATURE_TYPES: ReadonlySet<PrimaryCardType> = new Set([
 ]);
 export function isCreatureCardType(type: PrimaryCardType): boolean {
   return CREATURE_TYPES.has(type);
+}
+export function cardClassOf(type: PrimaryCardType): CardFrameClass {
+  if (type === 'Nexus Lord') return 'nexusLord';
+  if (type === 'Nexus Lord Back') return 'nexusLordBack';
+  return CREATURE_TYPES.has(type) ? 'creature' : 'noncreature';
 }
 
 // Cloud staging area for the admin Card Editor — see cloudDecks.ts for the
@@ -64,6 +76,18 @@ export interface CardDraft {
   cost?: number;
   power?: number;
   toughness?: number;
+  /** Nexus Lord stats (types 'Nexus Lord' / 'Nexus Lord Back' only) — the
+   * face's value circles. Attack exists only on the ascended back face. */
+  attack?: number;
+  intelligence?: number;
+  leadership?: number;
+  health?: number;
+  /** Floating ability boxes (type 'Nexus Lord' only) — up to
+   * MAX_NL_RULES_BOXES of them, each with its own rect + rules text,
+   * positioned per-draft by dragging on the card preview. Stored as one
+   * jsonb column rather than normalized rows: the boxes only ever exist as
+   * this draft's ordered little list, never queried independently. */
+  nlRulesBoxes: NlRulesBox[];
   rarity?: Rarity;
   set?: string;
   entersReady?: boolean;
@@ -104,6 +128,11 @@ interface CardDraftRow {
   cost: number | null;
   power: number | null;
   toughness: number | null;
+  attack: number | null;
+  intelligence: number | null;
+  leadership: number | null;
+  health: number | null;
+  nl_rules_boxes: NlRulesBox[] | null;
   rarity: string | null;
   set_name: string | null;
   enters_ready: boolean | null;
@@ -131,6 +160,14 @@ function rowToDraft(row: CardDraftRow): CardDraft {
     cost: row.cost ?? undefined,
     power: row.power ?? undefined,
     toughness: row.toughness ?? undefined,
+    attack: row.attack ?? undefined,
+    intelligence: row.intelligence ?? undefined,
+    leadership: row.leadership ?? undefined,
+    health: row.health ?? undefined,
+    // Array.isArray (not just ?? []) so a DB predating the nl_rules_boxes
+    // migration — where select * simply omits the column — still maps
+    // cleanly to "no boxes" instead of undefined sneaking into the draft.
+    nlRulesBoxes: Array.isArray(row.nl_rules_boxes) ? row.nl_rules_boxes : [],
     rarity: (row.rarity as Rarity | null) ?? undefined,
     set: row.set_name ?? undefined,
     entersReady: row.enters_ready ?? undefined,
@@ -159,6 +196,11 @@ function draftToRow(draft: CardDraft): Partial<CardDraftRow> {
     cost: draft.cost ?? null,
     power: draft.power ?? null,
     toughness: draft.toughness ?? null,
+    attack: draft.attack ?? null,
+    intelligence: draft.intelligence ?? null,
+    leadership: draft.leadership ?? null,
+    health: draft.health ?? null,
+    nl_rules_boxes: draft.nlRulesBoxes,
     rarity: draft.rarity ?? null,
     set_name: draft.set ?? null,
     enters_ready: draft.entersReady ?? null,
