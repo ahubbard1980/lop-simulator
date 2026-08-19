@@ -488,9 +488,9 @@ select conname from pg_constraint where conrelid = 'public.card_frames'::regclas
 
 and substitute it in.
 
-### Nexus Lord frame class (`nexusLord`)
+### Nexus Lord frame classes (`nexusLord`, `nexusLordBack`)
 
-Nexus Lords use a third, structurally different frame template: **full bleed** — no black border at all, the art reaches the physical card edge and the decorative frame floats within it — with a name plate, three stat circles (Intelligence/Leadership/Health), and a bottom rules plaque instead of the regular card layout. Run this to allow the new class value (it re-declares the same check constraint from above with the third value added):
+Nexus Lords use structurally different frame templates: **full bleed** — no black border at all, the art reaches the physical card edge and the decorative frame floats within it — with a name plate, stat circles (Intelligence/Leadership/Health, plus Attack on the back), and a bottom rules plaque instead of the regular card layout. Each face (`nexusLord` = front, `nexusLordBack` = ascended back) is its own class, one uploaded frame per affinity per face. Run this to allow both class values (it re-declares the same check constraint from above):
 
 ```sql
 alter table public.card_frames drop constraint if exists card_frames_card_class_check;
@@ -498,9 +498,7 @@ alter table public.card_frames add constraint card_frames_card_class_check
   check (card_class in ('creature', 'noncreature', 'nexusLord', 'nexusLordBack'));
 ```
 
-(`nexusLordBack` is the ascended back face — same full-bleed structure plus a fourth Attack stat circle, one frame per affinity per face, uploaded via Frame Library → "Nexus Lord — Back". If you ran an earlier version of this migration without it, just re-run the statement above.)
-
-Upload the frame via Frame Library → Card Class: "Nexus Lord (full bleed)". The stat icons (book/crown/heart in the smaller circles) are NOT part of the frame image — upload each once via that same screen's Stat Icons panel and the app composites them, so each icon's position can be fine-tuned individually via the Text Layout tab (the "NL: … Icon" fields) without re-exporting frame art. They're stored at fixed paths (`nl-stat-icons/<stat>.png`) in the existing `card-editor-assets` bucket — no table or migration involved.
+Upload frames via Frame Library → Card Class: "Nexus Lord — Front" / "— Back". The stat icons (book/crown/heart, plus the back's sword) are NOT part of the frame image — each FACE uploads its own set via that screen's Stat Icons panel (or one-click copies an Icon Library icon) and the app composites them, so each icon's position is fine-tuned individually via the Text Layout tab's "Front: … Icon" / "Back: … Icon" fields without re-exporting frame art. They're stored at fixed paths (`nl-stat-icons/<side>-<stat>.png`; icons uploaded before the per-face split live at the un-sided legacy path and still resolve as the front's) in the existing `card-editor-assets` bucket — no table or migration involved.
 
 ### Nexus Lord stats (`intelligence`, `leadership`, `health`, `attack`)
 
@@ -517,7 +515,7 @@ Without this migration, the Nexus Lords tab renders but saving a Nexus Lord draf
 
 ### Nexus Lord floating rules boxes (`nl_rules_boxes`)
 
-The template's floating ability boxes — up to 3 per face, each a banner strip (semi-transparent middle the art shows through) carrying its own rules text, positioned per-card by dragging on the preview. Stored as one jsonb list on the draft (`[{x, y, w, h, text}, …]`):
+The template's floating ability boxes — up to 3 per face, each a banner strip (semi-transparent middle the art shows through) carrying its own rules text. Positions are fully derived (right-anchored at a fixed width, stacked upward from the bottom rules plaque at a fixed gap); the only per-box adjustment is height, via a drag bar on the preview. Stored as one jsonb list on the draft (`[{x, y, w, h, text}, …]` — x/y/w are re-derived on load, so only h and text really carry information):
 
 ```sql
 alter table public.card_drafts add column if not exists nl_rules_boxes jsonb not null default '[]';
