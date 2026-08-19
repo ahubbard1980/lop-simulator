@@ -834,15 +834,22 @@ export function drawNlRulesBoxBanners(ctx: CanvasRenderingContext2D, img: HTMLIm
 // its text with it.
 const NL_RULES_BOX_PAD_X = 20;
 // Top pad sized so a first line carrying an oversized inline icon (the
-// enlarged focus emblem) still clears the banner's ornamental top bar.
+// enlarged focus emblem) still clears the banner's ornamental top bar —
+// tuned against the Chaos banner asset. Affinities whose banner art
+// carries a thicker top ornament get extra clearance on top of that base,
+// applied to both faces' boxes alike.
 const NL_RULES_BOX_PAD_TOP = 37;
+const NL_RULES_BOX_PAD_TOP_EXTRA: Partial<Record<Affinity, number>> = {
+  Corruption: 5,
+};
 const NL_RULES_BOX_PAD_BOTTOM = 18;
-function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean): TextFieldLayout {
+function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean, affinity?: Affinity): TextFieldLayout {
+  const padTop = NL_RULES_BOX_PAD_TOP + (affinity ? (NL_RULES_BOX_PAD_TOP_EXTRA[affinity] ?? 0) : 0);
   return {
     x: box.x + NL_RULES_BOX_PAD_X,
-    y: box.y + NL_RULES_BOX_PAD_TOP,
+    y: box.y + padTop,
     w: Math.max(20, box.w - NL_RULES_BOX_PAD_X * 2),
-    h: Math.max(16, box.h - NL_RULES_BOX_PAD_TOP - NL_RULES_BOX_PAD_BOTTOM),
+    h: Math.max(16, box.h - padTop - NL_RULES_BOX_PAD_BOTTOM),
     font: '"Noto Serif Devanagari", Georgia, serif',
     weight: 400,
     color: back ? NL_BACK_TEXT_COLOR : '#1c1a16',
@@ -1351,7 +1358,7 @@ export function drawCardText(ctx: CanvasRenderingContext2D, fields: CardTextFiel
       wrapAndFitText(ctx, String(fields.health), getTextFieldLayout(back ? 'nlbHealth' : 'nlHealth', affinity), iconImages);
     if (fields.rulesText) wrapAndFitText(ctx, fields.rulesText, getTextFieldLayout(back ? 'nlbRulesText' : 'nlRulesText', affinity), iconImages);
     fields.nlRulesBoxes?.forEach((box) => {
-      if (box.text) wrapAndFitText(ctx, box.text, nlRulesBoxTextLayout(box, back), iconImages);
+      if (box.text) wrapAndFitText(ctx, box.text, nlRulesBoxTextLayout(box, back, affinity), iconImages);
     });
     return;
   }
