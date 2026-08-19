@@ -833,7 +833,9 @@ export function drawNlRulesBoxBanners(ctx: CanvasRenderingContext2D, img: HTMLIm
 // it, rather than floating centered. Moving/resizing the box moves/reflows
 // its text with it.
 const NL_RULES_BOX_PAD_X = 20;
-const NL_RULES_BOX_PAD_TOP = 31;
+// Top pad sized so a first line carrying an oversized inline icon (the
+// enlarged focus emblem) still clears the banner's ornamental top bar.
+const NL_RULES_BOX_PAD_TOP = 37;
 const NL_RULES_BOX_PAD_BOTTOM = 18;
 function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean): TextFieldLayout {
   return {
