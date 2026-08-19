@@ -142,12 +142,19 @@ const TO_CANONICAL_Y = CARD_LAYOUT.canvasH / PREVIEW_H;
 const NUDGE_STEP = 2;
 const NUDGE_STEP_LARGE = 10;
 const MIN_BOX_SIZE = 12;
-// Only these two fields' boxes actually differ by affinity (nameplate width
-// and cost-circle position/size vary per frame) — every other field sits in
-// the same relative spot on every affinity's frame, so restricting the
-// Affinity selector to just these two prevents accidentally creating an
-// unwanted per-affinity override on a field that was never meant to have one.
-const AFFINITY_AWARE_FIELDS: readonly TextFieldName[] = ['name', 'cost'];
+// Which fields' boxes can differ by affinity. For regular cards it's just
+// these two (nameplate width and cost-circle position/size vary per frame;
+// every other field sits in the same relative spot on every affinity's
+// frame, so restricting the selector prevents accidentally creating an
+// unwanted override). Nexus Lord frames are hand-painted per affinity with
+// no shared plate/circle geometry guaranteed, so EVERY NL field (both
+// faces, icons included) is affinity-aware.
+const AFFINITY_AWARE_FIELDS: readonly TextFieldName[] = [
+  'name',
+  'cost',
+  ...NEXUS_LORD_TEXT_FIELD_NAMES,
+  ...NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
+];
 
 export function TextLayoutEditor() {
   const [selected, setSelected] = useState<TextFieldName>('name');
@@ -492,6 +499,41 @@ export function TextLayoutEditor() {
 
   const hasAffinityOverride = selectedAffinity ? affinityGeometry[affinityTextLayoutKey(selected, selectedAffinity)] !== undefined : false;
 
+  // Bulk "lock in": snapshots the current GLOBAL positions of every field
+  // in the selected field's template group into the selected affinity's own
+  // override rows. The intended flow when a template was calibrated against
+  // one affinity's frame (e.g. the NL layout tuned on Chaos): lock those
+  // positions into that affinity explicitly, then freely re-drag other
+  // affinities (or even the globals) without disturbing it.
+  const selectedGroup =
+    fieldTemplate(selected) === 'nexusLord'
+      ? NEXUS_LORD_TEXT_FIELD_NAMES
+      : fieldTemplate(selected) === 'nexusLordBack'
+        ? NEXUS_LORD_BACK_TEXT_FIELD_NAMES
+        : REGULAR_TEXT_FIELD_NAMES;
+  const selectedGroupLabel =
+    fieldTemplate(selected) === 'nexusLord' ? 'NL Front' : fieldTemplate(selected) === 'nexusLordBack' ? 'NL Back' : 'regular-card';
+  const copyGroupToAffinity = () => {
+    const affinity = selectedAffinity;
+    if (!affinity) return;
+    setSaving(true);
+    setMessage(null);
+    const updates: Partial<Record<string, Geometry>> = {};
+    Promise.all(
+      selectedGroup.map((field) => {
+        const geo = globalGeometry[field];
+        updates[affinityTextLayoutKey(field, affinity)] = geo;
+        return saveAffinityTextFieldGeometry(field, affinity, geo);
+      }),
+    )
+      .then(() => {
+        setAffinityGeometry((prev) => ({ ...prev, ...updates }));
+        setMessage(`Locked ${selectedGroup.length} ${selectedGroupLabel} field positions into ${affinity}.`);
+      })
+      .catch((err: unknown) => setMessage(err instanceof Error ? err.message : 'Could not copy positions.'))
+      .finally(() => setSaving(false));
+  };
+
   return (
     <div className="text-layout-editor">
       <div className="card-editor-field-grid">
@@ -635,6 +677,18 @@ export function TextLayoutEditor() {
             <button type="button" className="card-editor-filter-clear" onClick={resetToDefault}>
               {selectedAffinity ? `Reset ${selectedAffinity} to default` : 'Reset to default'}
             </button>
+            {selectedAffinity && (
+              <>
+                <button type="button" className="card-editor-filter-clear" onClick={copyGroupToAffinity}>
+                  Lock ALL current {selectedGroupLabel} positions into {selectedAffinity}
+                </button>
+                <p className="card-editor-hint">
+                  Copies every {selectedGroupLabel} field's current shared ("All") position into {selectedAffinity}-specific
+                  overrides in one click — use this to pin the layout you calibrated against one affinity's frame before
+                  re-adjusting other affinities.
+                </p>
+              </>
+            )}
 
             {selected === 'copyright' && (
               <div className="text-layout-copyright-block">

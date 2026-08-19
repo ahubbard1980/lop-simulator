@@ -328,7 +328,7 @@ export function CardFrameLibrary() {
         : REGULAR_TEXT_FIELD_NAMES;
   const textGuideBoxes = showTextGuide
     ? classTextFields.map((name) => {
-        const g = getTextFieldGeometry(name);
+        const g = getTextFieldGeometry(name, affinity);
         return {
           name,
           left: g.x * TO_PREVIEW_X,

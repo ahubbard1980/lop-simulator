@@ -120,10 +120,11 @@ function draftFromNexusLord(lord: NexusLordOption, key: string, side: NlSide): C
 // is its own; this recomputes every x/y/w from those heights, and runs on
 // every mutation and on draft load, so even a draft saved under the older
 // free-drag scheme snaps into the derived layout.
-function layoutNlRulesBoxes(boxes: NlRulesBox[], side: NlSide): NlRulesBox[] {
+function layoutNlRulesBoxes(boxes: NlRulesBox[], side: NlSide, affinity: Affinity): NlRulesBox[] {
   // The plaque's banner ornament starts a bit above its text box — each
-  // face stacks off its own plaque field.
-  const plaqueTop = getTextFieldGeometry(side === 'back' ? 'nlbRulesText' : 'nlRulesText').y - 18;
+  // face stacks off its own plaque field, honoring any per-affinity
+  // override of the plaque's position.
+  const plaqueTop = getTextFieldGeometry(side === 'back' ? 'nlbRulesText' : 'nlRulesText', affinity).y - 18;
   let bottom = plaqueTop - NL_RULES_BOX_GAP;
   return boxes.map((box) => {
     const laidOut: NlRulesBox = { ...box, x: NL_RULES_BOX_X, w: NL_RULES_BOX_W, y: bottom - box.h };
@@ -136,7 +137,7 @@ function layoutNlRulesBoxes(boxes: NlRulesBox[], side: NlSide): NlRulesBox[] {
 // non-NL drafts pass through untouched.
 function normalizeDraftBoxes(draft: CardDraft): CardDraft {
   if (!isNexusLordDraft(draft) || draft.nlRulesBoxes.length === 0) return draft;
-  return { ...draft, nlRulesBoxes: layoutNlRulesBoxes(draft.nlRulesBoxes, nlDraftSide(draft)) };
+  return { ...draft, nlRulesBoxes: layoutNlRulesBoxes(draft.nlRulesBoxes, nlDraftSide(draft), draft.affinity) };
 }
 
 // The live CardTemplate pool (src/data/*Cards.ts) still uses the engine's
@@ -605,9 +606,17 @@ export function CardEditor() {
         });
         setTextLayoutOverrides(overrideMap);
         setRulesLineHeight(getTextFieldGeometry('rulesText').lineHeightRatio ?? DEFAULT_LINE_HEIGHT_RATIO);
-        const affinityOverrideMap: Partial<Record<string, { x: number; y: number; w: number; h: number }>> = {};
+        const affinityOverrideMap: Partial<
+          Record<string, { x: number; y: number; w: number; h: number; lineHeightRatio?: number }>
+        > = {};
         affinityTextOverrides.forEach((o) => {
-          affinityOverrideMap[affinityTextLayoutKey(o.fieldName, o.affinity)] = { x: o.x, y: o.y, w: o.w, h: o.h };
+          affinityOverrideMap[affinityTextLayoutKey(o.fieldName, o.affinity)] = {
+            x: o.x,
+            y: o.y,
+            w: o.w,
+            h: o.h,
+            lineHeightRatio: o.lineHeightRatio,
+          };
         });
         setAffinityTextLayoutOverrides(affinityOverrideMap);
         setRarityEmblemLayoutOverride(rarityEmblemLayout);
@@ -836,9 +845,17 @@ export function CardEditor() {
         });
         setTextLayoutOverrides(overrideMap);
         setRulesLineHeight(getTextFieldGeometry('rulesText').lineHeightRatio ?? DEFAULT_LINE_HEIGHT_RATIO);
-        const affinityOverrideMap: Partial<Record<string, { x: number; y: number; w: number; h: number }>> = {};
+        const affinityOverrideMap: Partial<
+          Record<string, { x: number; y: number; w: number; h: number; lineHeightRatio?: number }>
+        > = {};
         affinityTextOverrides.forEach((o) => {
-          affinityOverrideMap[affinityTextLayoutKey(o.fieldName, o.affinity)] = { x: o.x, y: o.y, w: o.w, h: o.h };
+          affinityOverrideMap[affinityTextLayoutKey(o.fieldName, o.affinity)] = {
+            x: o.x,
+            y: o.y,
+            w: o.w,
+            h: o.h,
+            lineHeightRatio: o.lineHeightRatio,
+          };
         });
         setAffinityTextLayoutOverrides(affinityOverrideMap);
         setRarityEmblemLayoutOverride(rarityEmblemLayout);
@@ -989,7 +1006,10 @@ export function CardEditor() {
   const updateNlRulesBox = (index: number, patch: Partial<NlRulesBox>) => {
     setEditing((e) =>
       e
-        ? { ...e, nlRulesBoxes: layoutNlRulesBoxes(e.nlRulesBoxes.map((b, i) => (i === index ? { ...b, ...patch } : b)), nlDraftSide(e)) }
+        ? {
+            ...e,
+            nlRulesBoxes: layoutNlRulesBoxes(e.nlRulesBoxes.map((b, i) => (i === index ? { ...b, ...patch } : b)), nlDraftSide(e), e.affinity),
+          }
         : e,
     );
   };
@@ -1001,6 +1021,7 @@ export function CardEditor() {
             nlRulesBoxes: layoutNlRulesBoxes(
               [...e.nlRulesBoxes, { x: NL_RULES_BOX_X, y: 0, w: NL_RULES_BOX_W, h: DEFAULT_NL_RULES_BOX_H, text: '' }],
               nlDraftSide(e),
+              e.affinity,
             ),
           }
         : e,
@@ -1008,7 +1029,7 @@ export function CardEditor() {
   };
   const removeNlRulesBox = (index: number) => {
     setEditing((e) =>
-      e ? { ...e, nlRulesBoxes: layoutNlRulesBoxes(e.nlRulesBoxes.filter((_, i) => i !== index), nlDraftSide(e)) } : e,
+      e ? { ...e, nlRulesBoxes: layoutNlRulesBoxes(e.nlRulesBoxes.filter((_, i) => i !== index), nlDraftSide(e), e.affinity) } : e,
     );
   };
 
