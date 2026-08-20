@@ -725,7 +725,7 @@ export const NL_RULES_BOX_W = 345;
 // right end and crowds the text, so those affinities' boxes widen leftward
 // (the right edge stays tucked under the border).
 const NL_RULES_BOX_FOOTPRINT_BY_AFFINITY: Partial<Record<Affinity, { x: number; w: number }>> = {
-  Primal: { x: 360, w: 380 },
+  Primal: { x: 355, w: 385 },
 };
 export function nlRulesBoxFootprint(affinity?: Affinity): { x: number; w: number } {
   return (affinity && NL_RULES_BOX_FOOTPRINT_BY_AFFINITY[affinity]) || { x: NL_RULES_BOX_X, w: NL_RULES_BOX_W };
@@ -843,6 +843,14 @@ export function drawNlRulesBoxBanners(ctx: CanvasRenderingContext2D, img: HTMLIm
 // it, rather than floating centered. Moving/resizing the box moves/reflows
 // its text with it.
 const NL_RULES_BOX_PAD_X = 20;
+// Extra horizontal text inset per affinity — the banner footprint and the
+// text box are separate concerns: widening the banner gives the *art* more
+// span, but an affinity whose banner has thick ornamental side edges
+// (Primal's leafwork) needs its TEXT held further inside that banner
+// regardless of the footprint, on both sides.
+const NL_RULES_BOX_PAD_X_EXTRA: Partial<Record<Affinity, number>> = {
+  Primal: 14,
+};
 // Top pad sized so a first line carrying an oversized inline icon (the
 // enlarged focus emblem) still clears the banner's ornamental top bar —
 // tuned against the Chaos banner asset. Affinities whose banner art
@@ -851,14 +859,16 @@ const NL_RULES_BOX_PAD_X = 20;
 const NL_RULES_BOX_PAD_TOP = 37;
 const NL_RULES_BOX_PAD_TOP_EXTRA: Partial<Record<Affinity, number>> = {
   Corruption: 5,
+  Primal: 10,
 };
 const NL_RULES_BOX_PAD_BOTTOM = 18;
 function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean, affinity?: Affinity): TextFieldLayout {
   const padTop = NL_RULES_BOX_PAD_TOP + (affinity ? (NL_RULES_BOX_PAD_TOP_EXTRA[affinity] ?? 0) : 0);
+  const padX = NL_RULES_BOX_PAD_X + (affinity ? (NL_RULES_BOX_PAD_X_EXTRA[affinity] ?? 0) : 0);
   return {
-    x: box.x + NL_RULES_BOX_PAD_X,
+    x: box.x + padX,
     y: box.y + padTop,
-    w: Math.max(20, box.w - NL_RULES_BOX_PAD_X * 2),
+    w: Math.max(20, box.w - padX * 2),
     h: Math.max(16, box.h - padTop - NL_RULES_BOX_PAD_BOTTOM),
     font: '"Noto Serif Devanagari", Georgia, serif',
     weight: 400,
