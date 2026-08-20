@@ -37,6 +37,7 @@ import {
   NL_RULES_BOX_W,
   NL_RULES_BOX_GAP,
   DEFAULT_NL_RULES_BOX_H,
+  nlRulesBoxFootprint,
   type TextFieldName,
   type IconImages,
   type NexusLordStatIcons,
@@ -123,11 +124,14 @@ function draftFromNexusLord(lord: NexusLordOption, key: string, side: NlSide): C
 function layoutNlRulesBoxes(boxes: NlRulesBox[], side: NlSide, affinity: Affinity): NlRulesBox[] {
   // The plaque's banner ornament starts a bit above its text box — each
   // face stacks off its own plaque field, honoring any per-affinity
-  // override of the plaque's position.
+  // override of the plaque's position. The horizontal footprint is also
+  // affinity-aware (see nlRulesBoxFootprint — wider where border art
+  // intrudes further into the card).
   const plaqueTop = getTextFieldGeometry(side === 'back' ? 'nlbRulesText' : 'nlRulesText', affinity).y - 18;
+  const footprint = nlRulesBoxFootprint(affinity);
   let bottom = plaqueTop - NL_RULES_BOX_GAP;
   return boxes.map((box) => {
-    const laidOut: NlRulesBox = { ...box, x: NL_RULES_BOX_X, w: NL_RULES_BOX_W, y: bottom - box.h };
+    const laidOut: NlRulesBox = { ...box, x: footprint.x, w: footprint.w, y: bottom - box.h };
     bottom = laidOut.y - NL_RULES_BOX_GAP;
     return laidOut;
   });

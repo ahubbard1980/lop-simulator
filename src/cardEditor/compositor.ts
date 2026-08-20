@@ -720,6 +720,16 @@ export const MAX_NL_RULES_BOXES = 3;
 // leaving a sliver of art between the two.
 export const NL_RULES_BOX_X = 395;
 export const NL_RULES_BOX_W = 345;
+// Per-affinity footprint overrides — some borders' art intrudes further
+// into the card (Primal's vines), which both hides more of the banner's
+// right end and crowds the text, so those affinities' boxes widen leftward
+// (the right edge stays tucked under the border).
+const NL_RULES_BOX_FOOTPRINT_BY_AFFINITY: Partial<Record<Affinity, { x: number; w: number }>> = {
+  Primal: { x: 360, w: 380 },
+};
+export function nlRulesBoxFootprint(affinity?: Affinity): { x: number; w: number } {
+  return (affinity && NL_RULES_BOX_FOOTPRINT_BY_AFFINITY[affinity]) || { x: NL_RULES_BOX_X, w: NL_RULES_BOX_W };
+}
 export const DEFAULT_NL_RULES_BOX_H = 185;
 // Vertical gap between a box and whatever sits below it (the bottom rules
 // plaque for the first box, the previous box for the ones stacked above) —
