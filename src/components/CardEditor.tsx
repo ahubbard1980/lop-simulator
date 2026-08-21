@@ -16,7 +16,12 @@ import { listCardIcons, type CardIcon } from '../net/cardIcons';
 import { loadAllNlStatIcons } from '../net/nlStatIcons';
 import { loadNlRulesBoxImage } from '../net/nlRulesBoxes';
 import { uploadAsset, getAssetUrl } from '../net/storageAssets';
-import { listTextLayoutOverrides, listAffinityTextLayoutOverrides, saveTextFieldGeometry } from '../net/cardTextLayout';
+import {
+  listTextLayoutOverrides,
+  listAffinityTextLayoutOverrides,
+  saveTextFieldGeometry,
+  saveAffinityTextFieldGeometry,
+} from '../net/cardTextLayout';
 import { getRarityEmblemLayoutOverride } from '../net/rarityEmblemLayout';
 import { listCopyrightTextSettings } from '../net/copyrightText';
 import {
@@ -28,6 +33,7 @@ import {
   setAffinityTextLayoutOverrides,
   setRarityEmblemLayoutOverride,
   updateTextLayoutOverride,
+  updateAffinityTextLayoutOverride,
   getTextFieldGeometry,
   affinityTextLayoutKey,
   DEFAULT_LINE_HEIGHT_RATIO,
@@ -129,8 +135,11 @@ function layoutNlRulesBoxes(boxes: NlRulesBox[], side: NlSide, affinity: Affinit
   // intrudes further into the card).
   const plaqueTop = getTextFieldGeometry(side === 'back' ? 'nlbRulesText' : 'nlRulesText', affinity).y - 18;
   const footprint = nlRulesBoxFootprint(affinity);
-  const { gap, anchorNudge } = nlRulesBoxSpacing(affinity);
-  let bottom = plaqueTop - gap + anchorNudge;
+  const { gap } = nlRulesBoxSpacing(affinity);
+  // Admin-nudged per-affinity anchor offset (the "Stack anchor" ▲▼ control
+  // in the Floating Rules Boxes editor) — positive = stack sits lower.
+  const anchorOffset = getTextFieldGeometry(side === 'back' ? 'nlbBoxAnchor' : 'nlBoxAnchor', affinity).y;
+  let bottom = plaqueTop - gap + anchorOffset;
   return boxes.map((box) => {
     const laidOut: NlRulesBox = { ...box, x: footprint.x, w: footprint.w, y: bottom - box.h };
     bottom = laidOut.y - gap;
@@ -1038,6 +1047,34 @@ export function CardEditor() {
     );
   };
 
+  // The Stack anchor nudger: shifts this affinity+face's whole box stack up
+  // (▲, negative) or down (▼, positive) relative to the computed plaque
+  // anchor, live on the preview — persisted through the same per-affinity
+  // geometry tier as text fields (pseudo-field, y = offset), debounced like
+  // every other auto-save on this screen.
+  const boxAnchorSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (boxAnchorSaveRef.current) clearTimeout(boxAnchorSaveRef.current);
+    },
+    [],
+  );
+  const nudgeBoxAnchor = (delta: number) => {
+    if (!editing || !isNexusLordDraft(editing)) return;
+    const affinity = editing.affinity;
+    const side = nlDraftSide(editing);
+    const anchorField = side === 'back' ? ('nlbBoxAnchor' as const) : ('nlBoxAnchor' as const);
+    const next = { x: 0, y: getTextFieldGeometry(anchorField, affinity).y + delta, w: 0, h: 0 };
+    updateAffinityTextLayoutOverride(anchorField, affinity, next);
+    setEditing((e) => (e ? { ...e, nlRulesBoxes: layoutNlRulesBoxes(e.nlRulesBoxes, side, affinity) } : e));
+    if (boxAnchorSaveRef.current) clearTimeout(boxAnchorSaveRef.current);
+    boxAnchorSaveRef.current = setTimeout(() => {
+      void saveAffinityTextFieldGeometry(anchorField, affinity, next).catch((err: unknown) =>
+        setMessage(err instanceof Error ? err.message : 'Could not save the stack anchor.'),
+      );
+    }, 600);
+  };
+
   const handleSave = async () => {
     if (!editing) return;
     if (!editing.name.trim()) {
@@ -1585,6 +1622,22 @@ export function CardEditor() {
                   >
                     + Add Box ({editing.nlRulesBoxes.length}/{MAX_NL_RULES_BOXES})
                   </button>
+                  <span
+                    className="card-editor-nl-anchor"
+                    title={`Shifts the whole box stack up/down for every ${editing.affinity} ${nlDraftSide(editing)} card — use it to match the bottom (plaque) gap to the box-to-box gap. Saves automatically.`}
+                  >
+                    Stack anchor
+                    <button type="button" className="card-frame-nudge-btn" onClick={() => nudgeBoxAnchor(-2)} aria-label="Raise stack">
+                      ▲
+                    </button>
+                    <span className="card-editor-nl-anchor-value">
+                      {Math.round(getTextFieldGeometry(nlDraftSide(editing) === 'back' ? 'nlbBoxAnchor' : 'nlBoxAnchor', editing.affinity).y)}
+                      px
+                    </span>
+                    <button type="button" className="card-frame-nudge-btn" onClick={() => nudgeBoxAnchor(2)} aria-label="Lower stack">
+                      ▼
+                    </button>
+                  </span>
                 </div>
                 {editing.nlRulesBoxes.length === 0 ? (
                   <p className="card-editor-hint">

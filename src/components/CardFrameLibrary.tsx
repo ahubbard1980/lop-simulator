@@ -78,6 +78,9 @@ const TEXT_GUIDE_LABELS: Record<TextFieldName, string> = {
   nlbIntelligenceIcon: 'Int Icon',
   nlbLeadershipIcon: 'Ldr Icon',
   nlbHealthIcon: 'Health Icon',
+  // Pseudo-fields — never rendered as guides; labeled to satisfy the Record.
+  nlBoxAnchor: 'Box Anchor',
+  nlbBoxAnchor: 'Box Anchor',
 };
 const FRAME_ELEMENT_LABELS: Record<FrameElementName, string> = {
   nameplate: 'Name Plate',

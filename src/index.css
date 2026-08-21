@@ -3845,6 +3845,20 @@ button {
   font-size: 12px;
   border: none;
 }
+/* The box stack's per-affinity anchor nudger. */
+.card-editor-nl-anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted-fg);
+}
+.card-editor-nl-anchor-value {
+  font-family: monospace;
+  font-size: 11px;
+  min-width: 34px;
+  text-align: center;
+}
 .card-editor-nl-box-row {
   display: flex;
   flex-direction: column;

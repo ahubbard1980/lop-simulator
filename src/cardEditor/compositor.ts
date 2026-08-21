@@ -358,6 +358,18 @@ export const CARD_LAYOUT = {
     x: 80, y: 983, w: 34, h: 34,
     font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
   } satisfies TextFieldLayout,
+  // Pseudo-fields — never drawn; `y` carries the floating-box stack's
+  // anchor offset per face (see the TextFieldName union's comment). Base is
+  // 0 = the plain computed anchor; per-affinity overrides carry each
+  // frame's admin-nudged value.
+  nlBoxAnchor: {
+    x: 0, y: 0, w: 0, h: 0,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
+  nlbBoxAnchor: {
+    x: 0, y: 0, w: 0, h: 0,
+    font: 'serif', weight: 400, color: '#000000', maxFontPx: 1, minFontPx: 1,
+  } satisfies TextFieldLayout,
   // The area inside the black border — art's cover/contain fit targets this
   // instead of the full bleed canvas, so it isn't forced to needlessly crop
   // in to cover a border zone the opaque frame border hides anyway. Art still
@@ -418,7 +430,13 @@ export type TextFieldName =
   | 'nlbAttackIcon'
   | 'nlbIntelligenceIcon'
   | 'nlbLeadershipIcon'
-  | 'nlbHealthIcon';
+  | 'nlbHealthIcon'
+  // Pseudo-fields (one per NL face): not drawn and not listed in any
+  // field-name array — they exist so the floating-box stack's anchor
+  // offset can persist through the same per-affinity geometry tier as real
+  // fields. Only `y` is meaningful (the offset, positive = stack lower).
+  | 'nlBoxAnchor'
+  | 'nlbBoxAnchor';
 // Split by template so UIs that iterate fields (TextLayoutEditor's picker,
 // CardFrameLibrary's guide overlay) can show the set that matches the frame
 // being previewed instead of overlaying both templates' boxes at once.
@@ -511,6 +529,14 @@ export function setTextLayoutOverrides(overrides: Partial<Record<TextFieldName, 
 // just to change its own.
 export function updateTextLayoutOverride(name: TextFieldName, geometry: TextFieldGeometry): void {
   textLayoutOverrides[name] = geometry;
+}
+
+// Patches one (field, affinity) override in place — the per-affinity
+// sibling of updateTextLayoutOverride above, for one-off live edits (e.g.
+// the Card Editor's floating-box Stack anchor nudger) that shouldn't have
+// to reconstruct the whole override set.
+export function updateAffinityTextLayoutOverride(name: TextFieldName, affinity: Affinity, geometry: TextFieldGeometry): void {
+  affinityTextLayoutOverrides[affinityTextLayoutKey(name, affinity)] = geometry;
 }
 
 // Same replace-not-merge semantics, for the per-affinity tier.
@@ -741,20 +767,18 @@ export const DEFAULT_NL_RULES_BOX_H = 185;
 export const NL_RULES_BOX_GAP = 18;
 // Per-affinity spacing for the box stack. `gap` (default NL_RULES_BOX_GAP)
 // is the ONE spacing value used both between stacked boxes and between the
-// first box and the plaque, so the two always match by construction.
-// `anchorNudge` corrects where the plaque's ornament top actually is for
-// this frame (the layout estimates it as plaque text y - 18, but each
-// affinity's ornament reaches a different height): negative lifts the
-// whole stack up (wider visual plaque gap), positive drops it closer.
-const NL_RULES_BOX_SPACING_BY_AFFINITY: Partial<Record<Affinity, { gap?: number; anchorNudge?: number }>> = {
-  Divinity: { anchorNudge: -12 },
-  Corruption: { anchorNudge: -16 },
-  Arcane: { anchorNudge: 20 },
-  Primal: { anchorNudge: -10 },
-};
-export function nlRulesBoxSpacing(affinity?: Affinity): { gap: number; anchorNudge: number } {
+// first box and the plaque, so the two always match by construction. Where
+// the stack ANCHORS relative to the plaque is not code-tuned per affinity —
+// several rounds of estimating each frame's plaque ornament from
+// screenshots kept landing wrong, so that's now an admin-adjusted value
+// instead: the Card Editor's "Stack anchor" nudger, persisted per
+// affinity+face through the affinity text-layout tier on the
+// nlBoxAnchor/nlbBoxAnchor pseudo-fields (their `y` is the offset,
+// positive = stack sits lower).
+const NL_RULES_BOX_SPACING_BY_AFFINITY: Partial<Record<Affinity, { gap?: number }>> = {};
+export function nlRulesBoxSpacing(affinity?: Affinity): { gap: number } {
   const spacing = (affinity ? NL_RULES_BOX_SPACING_BY_AFFINITY[affinity] : undefined) ?? {};
-  return { gap: spacing.gap ?? NL_RULES_BOX_GAP, anchorNudge: spacing.anchorNudge ?? 0 };
+  return { gap: spacing.gap ?? NL_RULES_BOX_GAP };
 }
 
 // The banner asset is a vertical sandwich: ornamental bar, semi-transparent

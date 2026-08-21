@@ -74,6 +74,10 @@ const FIELD_LABELS: Record<TextFieldName, string> = {
   nlbIntelligenceIcon: 'Back: Intelligence Icon',
   nlbLeadershipIcon: 'Back: Leadership Icon',
   nlbHealthIcon: 'Back: Health Icon',
+  // Pseudo-fields — never listed in the picker (absent from the name
+  // arrays); labeled only to satisfy the Record type.
+  nlBoxAnchor: 'Front: Box Stack Anchor',
+  nlbBoxAnchor: 'Back: Box Stack Anchor',
 };
 
 // Which template a field belongs to decides which frame class the preview
