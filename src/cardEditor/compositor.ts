@@ -864,7 +864,7 @@ const NL_RULES_BOX_PAD_BOTTOM = 18;
 const NL_RULES_BOX_PAD_EXTRA: Partial<Record<Affinity, { top?: number; left?: number; right?: number }>> = {
   Corruption: { top: 5 },
   Primal: { top: 10, left: 14, right: 14 },
-  Arcane: { top: 5, left: 8 },
+  Arcane: { top: 10, left: 8 },
 };
 function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean, affinity?: Affinity): TextFieldLayout {
   const extra = (affinity ? NL_RULES_BOX_PAD_EXTRA[affinity] : undefined) ?? {};
