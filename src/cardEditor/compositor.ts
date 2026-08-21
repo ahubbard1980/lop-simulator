@@ -726,6 +726,10 @@ export const NL_RULES_BOX_W = 345;
 // (the right edge stays tucked under the border).
 const NL_RULES_BOX_FOOTPRINT_BY_AFFINITY: Partial<Record<Affinity, { x: number; w: number }>> = {
   Primal: { x: 355, w: 385 },
+  // 8px wider leftward than shared (right edge unchanged) — paired with an
+  // equal left text-pad extra below so the banner grows but the text box
+  // stays exactly where the shared layout puts it.
+  Arcane: { x: 387, w: 353 },
 };
 export function nlRulesBoxFootprint(affinity?: Affinity): { x: number; w: number } {
   return (affinity && NL_RULES_BOX_FOOTPRINT_BY_AFFINITY[affinity]) || { x: NL_RULES_BOX_X, w: NL_RULES_BOX_W };
@@ -843,32 +847,34 @@ export function drawNlRulesBoxBanners(ctx: CanvasRenderingContext2D, img: HTMLIm
 // it, rather than floating centered. Moving/resizing the box moves/reflows
 // its text with it.
 const NL_RULES_BOX_PAD_X = 20;
-// Extra horizontal text inset per affinity — the banner footprint and the
-// text box are separate concerns: widening the banner gives the *art* more
-// span, but an affinity whose banner has thick ornamental side edges
-// (Primal's leafwork) needs its TEXT held further inside that banner
-// regardless of the footprint, on both sides.
-const NL_RULES_BOX_PAD_X_EXTRA: Partial<Record<Affinity, number>> = {
-  Primal: 14,
-};
 // Top pad sized so a first line carrying an oversized inline icon (the
 // enlarged focus emblem) still clears the banner's ornamental top bar —
 // tuned against the Chaos banner asset. Affinities whose banner art
 // carries a thicker top ornament get extra clearance on top of that base,
 // applied to both faces' boxes alike.
 const NL_RULES_BOX_PAD_TOP = 37;
-const NL_RULES_BOX_PAD_TOP_EXTRA: Partial<Record<Affinity, number>> = {
-  Corruption: 5,
-  Primal: 10,
-};
 const NL_RULES_BOX_PAD_BOTTOM = 18;
+// Extra text insets per affinity, on top of the shared pads above — the
+// banner footprint and the text box are separate concerns: widening the
+// banner gives the *art* more span, while these hold the TEXT clear of an
+// affinity's thicker ornamental edges (Primal's leafwork sides, various
+// top bars), each side independently. An affinity that widens its
+// footprint leftward pairs it with an equal `left` here when the text box
+// itself shouldn't move (see Arcane).
+const NL_RULES_BOX_PAD_EXTRA: Partial<Record<Affinity, { top?: number; left?: number; right?: number }>> = {
+  Corruption: { top: 5 },
+  Primal: { top: 10, left: 14, right: 14 },
+  Arcane: { top: 5, left: 8 },
+};
 function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean, affinity?: Affinity): TextFieldLayout {
-  const padTop = NL_RULES_BOX_PAD_TOP + (affinity ? (NL_RULES_BOX_PAD_TOP_EXTRA[affinity] ?? 0) : 0);
-  const padX = NL_RULES_BOX_PAD_X + (affinity ? (NL_RULES_BOX_PAD_X_EXTRA[affinity] ?? 0) : 0);
+  const extra = (affinity ? NL_RULES_BOX_PAD_EXTRA[affinity] : undefined) ?? {};
+  const padTop = NL_RULES_BOX_PAD_TOP + (extra.top ?? 0);
+  const padLeft = NL_RULES_BOX_PAD_X + (extra.left ?? 0);
+  const padRight = NL_RULES_BOX_PAD_X + (extra.right ?? 0);
   return {
-    x: box.x + padX,
+    x: box.x + padLeft,
     y: box.y + padTop,
-    w: Math.max(20, box.w - padX * 2),
+    w: Math.max(20, box.w - padLeft - padRight),
     h: Math.max(16, box.h - padTop - NL_RULES_BOX_PAD_BOTTOM),
     font: '"Noto Serif Devanagari", Georgia, serif',
     weight: 400,
