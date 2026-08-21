@@ -739,17 +739,19 @@ export const DEFAULT_NL_RULES_BOX_H = 185;
 // plaque for the first box, the previous box for the ones stacked above) —
 // see CardEditor.tsx's layoutNlRulesBoxes.
 export const NL_RULES_BOX_GAP = 18;
-// Per-affinity anchor correction for the FIRST box (positive = the whole
-// stack sits that many px lower, closer to the plaque). The first-box gap
-// is computed off the plaque TEXT field's position plus a fixed ornament
-// allowance, but each affinity's plaque banner ornament actually reaches a
-// different height — this nudge makes the visual box-to-plaque gap match
-// the box-to-box gap per frame. Inter-box spacing is unaffected.
-const NL_RULES_BOX_ANCHOR_NUDGE_BY_AFFINITY: Partial<Record<Affinity, number>> = {
-  Divinity: 12,
+// Per-affinity spacing for the box stack. `gap` (default NL_RULES_BOX_GAP)
+// is the ONE spacing value used both between stacked boxes and between the
+// first box and the plaque, so the two always match by construction.
+// `anchorNudge` corrects where the plaque's ornament top actually is for
+// this frame (the layout estimates it as plaque text y - 18, but each
+// affinity's ornament reaches a different height): negative lifts the
+// whole stack up (wider visual plaque gap), positive drops it closer.
+const NL_RULES_BOX_SPACING_BY_AFFINITY: Partial<Record<Affinity, { gap?: number; anchorNudge?: number }>> = {
+  Divinity: { anchorNudge: -12 },
 };
-export function nlRulesBoxAnchorNudge(affinity?: Affinity): number {
-  return (affinity && NL_RULES_BOX_ANCHOR_NUDGE_BY_AFFINITY[affinity]) ?? 0;
+export function nlRulesBoxSpacing(affinity?: Affinity): { gap: number; anchorNudge: number } {
+  const spacing = (affinity ? NL_RULES_BOX_SPACING_BY_AFFINITY[affinity] : undefined) ?? {};
+  return { gap: spacing.gap ?? NL_RULES_BOX_GAP, anchorNudge: spacing.anchorNudge ?? 0 };
 }
 
 // The banner asset is a vertical sandwich: ornamental bar, semi-transparent
