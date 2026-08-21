@@ -748,6 +748,7 @@ export const NL_RULES_BOX_GAP = 18;
 // whole stack up (wider visual plaque gap), positive drops it closer.
 const NL_RULES_BOX_SPACING_BY_AFFINITY: Partial<Record<Affinity, { gap?: number; anchorNudge?: number }>> = {
   Divinity: { anchorNudge: -12 },
+  Corruption: { anchorNudge: -16 },
 };
 export function nlRulesBoxSpacing(affinity?: Affinity): { gap: number; anchorNudge: number } {
   const spacing = (affinity ? NL_RULES_BOX_SPACING_BY_AFFINITY[affinity] : undefined) ?? {};
