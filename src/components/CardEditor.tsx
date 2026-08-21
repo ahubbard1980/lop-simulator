@@ -38,6 +38,7 @@ import {
   NL_RULES_BOX_GAP,
   DEFAULT_NL_RULES_BOX_H,
   nlRulesBoxFootprint,
+  nlRulesBoxAnchorNudge,
   type TextFieldName,
   type IconImages,
   type NexusLordStatIcons,
@@ -129,7 +130,7 @@ function layoutNlRulesBoxes(boxes: NlRulesBox[], side: NlSide, affinity: Affinit
   // intrudes further into the card).
   const plaqueTop = getTextFieldGeometry(side === 'back' ? 'nlbRulesText' : 'nlRulesText', affinity).y - 18;
   const footprint = nlRulesBoxFootprint(affinity);
-  let bottom = plaqueTop - NL_RULES_BOX_GAP;
+  let bottom = plaqueTop - NL_RULES_BOX_GAP + nlRulesBoxAnchorNudge(affinity);
   return boxes.map((box) => {
     const laidOut: NlRulesBox = { ...box, x: footprint.x, w: footprint.w, y: bottom - box.h };
     bottom = laidOut.y - NL_RULES_BOX_GAP;

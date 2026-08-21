@@ -737,8 +737,20 @@ export function nlRulesBoxFootprint(affinity?: Affinity): { x: number; w: number
 export const DEFAULT_NL_RULES_BOX_H = 185;
 // Vertical gap between a box and whatever sits below it (the bottom rules
 // plaque for the first box, the previous box for the ones stacked above) —
-// see CardEditor.tsx's defaultNlRulesBox.
+// see CardEditor.tsx's layoutNlRulesBoxes.
 export const NL_RULES_BOX_GAP = 18;
+// Per-affinity anchor correction for the FIRST box (positive = the whole
+// stack sits that many px lower, closer to the plaque). The first-box gap
+// is computed off the plaque TEXT field's position plus a fixed ornament
+// allowance, but each affinity's plaque banner ornament actually reaches a
+// different height — this nudge makes the visual box-to-plaque gap match
+// the box-to-box gap per frame. Inter-box spacing is unaffected.
+const NL_RULES_BOX_ANCHOR_NUDGE_BY_AFFINITY: Partial<Record<Affinity, number>> = {
+  Divinity: 12,
+};
+export function nlRulesBoxAnchorNudge(affinity?: Affinity): number {
+  return (affinity && NL_RULES_BOX_ANCHOR_NUDGE_BY_AFFINITY[affinity]) ?? 0;
+}
 
 // The banner asset is a vertical sandwich: ornamental bar, semi-transparent
 // middle (the ~20%-transparent parchment the art shows through), ornamental
