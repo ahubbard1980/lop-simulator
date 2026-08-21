@@ -752,10 +752,11 @@ export const NL_RULES_BOX_W = 345;
 // (the right edge stays tucked under the border).
 const NL_RULES_BOX_FOOTPRINT_BY_AFFINITY: Partial<Record<Affinity, { x: number; w: number }>> = {
   Primal: { x: 355, w: 385 },
-  // 8px wider leftward than shared (right edge unchanged) — paired with an
+  // Wider leftward than shared (right edge unchanged) — paired with an
   // equal left text-pad extra below so the banner grows but the text box
   // stays exactly where the shared layout puts it.
   Arcane: { x: 387, w: 353 },
+  Divinity: { x: 390, w: 350 },
 };
 export function nlRulesBoxFootprint(affinity?: Affinity): { x: number; w: number } {
   return (affinity && NL_RULES_BOX_FOOTPRINT_BY_AFFINITY[affinity]) || { x: NL_RULES_BOX_X, w: NL_RULES_BOX_W };
@@ -906,6 +907,7 @@ const NL_RULES_BOX_PAD_EXTRA: Partial<Record<Affinity, { top?: number; left?: nu
   Corruption: { top: 5 },
   Primal: { top: 10, left: 14, right: 14 },
   Arcane: { top: 10, left: 8 },
+  Divinity: { top: 5, left: 5 },
 };
 function nlRulesBoxTextLayout(box: NlRulesBox, back: boolean, affinity?: Affinity): TextFieldLayout {
   const extra = (affinity ? NL_RULES_BOX_PAD_EXTRA[affinity] : undefined) ?? {};
