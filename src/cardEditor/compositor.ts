@@ -905,7 +905,7 @@ const NL_RULES_BOX_PAD_BOTTOM = 18;
 // itself shouldn't move (see Arcane).
 const NL_RULES_BOX_PAD_EXTRA: Partial<Record<Affinity, { top?: number; left?: number; right?: number }>> = {
   Corruption: { top: 5 },
-  Primal: { top: 10, left: 14, right: 14 },
+  Primal: { top: 13, left: 14, right: 14 },
   Arcane: { top: 10, left: 8 },
   Divinity: { top: 5, left: 5 },
 };
