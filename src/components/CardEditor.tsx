@@ -35,7 +35,6 @@ import {
   MAX_NL_RULES_BOXES,
   NL_RULES_BOX_X,
   NL_RULES_BOX_W,
-  NL_RULES_BOX_GAP,
   DEFAULT_NL_RULES_BOX_H,
   nlRulesBoxFootprint,
   nlRulesBoxSpacing,
