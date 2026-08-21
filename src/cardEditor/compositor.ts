@@ -749,6 +749,8 @@ export const NL_RULES_BOX_GAP = 18;
 const NL_RULES_BOX_SPACING_BY_AFFINITY: Partial<Record<Affinity, { gap?: number; anchorNudge?: number }>> = {
   Divinity: { anchorNudge: -12 },
   Corruption: { anchorNudge: -16 },
+  Arcane: { anchorNudge: 20 },
+  Primal: { anchorNudge: -10 },
 };
 export function nlRulesBoxSpacing(affinity?: Affinity): { gap: number; anchorNudge: number } {
   const spacing = (affinity ? NL_RULES_BOX_SPACING_BY_AFFINITY[affinity] : undefined) ?? {};
