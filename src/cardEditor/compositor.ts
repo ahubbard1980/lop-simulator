@@ -402,7 +402,7 @@ export interface ImageFieldLayout {
 // hardcoded) can be nudged live and persisted via the Text Layout tab (see
 // TextLayoutEditor.tsx + net/cardTextLayout.ts), instead of round-tripping
 // pixel guesses through code edits like the initial calibration did.
-export type TextFieldName =
+export type LayoutTextFieldName =
   | 'name'
   | 'typeLine'
   | 'cost'
@@ -437,6 +437,99 @@ export type TextFieldName =
   // fields. Only `y` is meaningful (the offset, positive = stack lower).
   | 'nlBoxAnchor'
   | 'nlbBoxAnchor';
+
+// Class-variant regular templates: the Leyline / Non-basic Leyline / Token
+// frame classes draw the exact same regular card shape (same fields, fonts,
+// wrap behavior), but their frame art positions the plates differently, so
+// each gets its own overrideable copy of the regular field set. Variant
+// fields have NO hardcoded CARD_LAYOUT entry — styling comes from the
+// regular field they shadow, and geometry resolution falls through to that
+// base field's own resolution (its overrides included, see
+// getTextFieldGeometry), so an untouched variant field keeps tracking the
+// tuned regular layout until it's specifically nudged in the Text Layout
+// tab. Values intentionally match the CardFrameClass names so cardClassOf's
+// result can select the template directly.
+export type VariantTemplate = 'leyline' | 'nonbasicLeyline' | 'token';
+export function isVariantTemplate(t: string | undefined): t is VariantTemplate {
+  return t === 'leyline' || t === 'nonbasicLeyline' || t === 'token';
+}
+export const VARIANT_TEMPLATE_LABELS: Record<VariantTemplate, string> = {
+  leyline: 'Leyline',
+  nonbasicLeyline: 'Non-basic Leyline',
+  token: 'Token',
+};
+const VARIANT_FIELD_PREFIX: Record<VariantTemplate, string> = {
+  leyline: 'ley',
+  nonbasicLeyline: 'nbley',
+  token: 'tok',
+};
+// Leylines never carry power/toughness (their taxonomy types aren't
+// creature types), so their variant sets omit those two; tokens are
+// creature-shaped and keep them.
+type NoncreatureVariantBase = 'name' | 'typeLine' | 'cost' | 'rulesText' | 'rulesTextExpanded' | 'flavorText' | 'artist' | 'copyright';
+type TokenVariantBase = NoncreatureVariantBase | 'power' | 'toughness';
+export type TextFieldName =
+  | LayoutTextFieldName
+  | `ley${Capitalize<NoncreatureVariantBase>}`
+  | `nbley${Capitalize<NoncreatureVariantBase>}`
+  | `tok${Capitalize<TokenVariantBase>}`;
+
+const variantFieldBaseMap = new Map<TextFieldName, LayoutTextFieldName>();
+const variantFieldTemplateMap = new Map<TextFieldName, VariantTemplate>();
+function registerVariantFields(template: VariantTemplate, bases: LayoutTextFieldName[]): TextFieldName[] {
+  return bases.map((base) => {
+    const name = `${VARIANT_FIELD_PREFIX[template]}${base[0].toUpperCase()}${base.slice(1)}` as TextFieldName;
+    variantFieldBaseMap.set(name, base);
+    variantFieldTemplateMap.set(name, template);
+    return name;
+  });
+}
+const NONCREATURE_VARIANT_BASES: LayoutTextFieldName[] = [
+  'name',
+  'typeLine',
+  'cost',
+  'rulesText',
+  'rulesTextExpanded',
+  'flavorText',
+  'artist',
+  'copyright',
+];
+const TOKEN_VARIANT_BASES: LayoutTextFieldName[] = [
+  'name',
+  'typeLine',
+  'cost',
+  'rulesText',
+  'rulesTextExpanded',
+  'flavorText',
+  'power',
+  'toughness',
+  'artist',
+  'copyright',
+];
+export const LEYLINE_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('leyline', NONCREATURE_VARIANT_BASES);
+export const NONBASIC_LEYLINE_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('nonbasicLeyline', NONCREATURE_VARIANT_BASES);
+export const TOKEN_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('token', TOKEN_VARIANT_BASES);
+export const VARIANT_TEXT_FIELD_NAMES_BY_TEMPLATE: Record<VariantTemplate, TextFieldName[]> = {
+  leyline: LEYLINE_TEXT_FIELD_NAMES,
+  nonbasicLeyline: NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
+  token: TOKEN_TEXT_FIELD_NAMES,
+};
+/** The regular field a variant field shadows, or undefined for real fields. */
+export function variantBaseField(name: TextFieldName): LayoutTextFieldName | undefined {
+  return variantFieldBaseMap.get(name);
+}
+/** Which variant template a variant field belongs to (undefined otherwise). */
+export function variantTemplateOfField(name: TextFieldName): VariantTemplate | undefined {
+  return variantFieldTemplateMap.get(name);
+}
+/** The variant field to draw a base field through — falls back to the base
+ * name itself when the template's set doesn't include that field (e.g. a
+ * leyline draft somehow carrying power), so drawing never dereferences a
+ * field that was never registered. */
+export function variantTextFieldName(template: VariantTemplate, base: LayoutTextFieldName): TextFieldName {
+  const name = `${VARIANT_FIELD_PREFIX[template]}${base[0].toUpperCase()}${base.slice(1)}` as TextFieldName;
+  return variantFieldBaseMap.has(name) ? name : base;
+}
 // Split by template so UIs that iterate fields (TextLayoutEditor's picker,
 // CardFrameLibrary's guide overlay) can show the set that matches the frame
 // being previewed instead of overlaying both templates' boxes at once.
@@ -476,6 +569,9 @@ export const NEXUS_LORD_BACK_TEXT_FIELD_NAMES: TextFieldName[] = [
 ];
 export const TEXT_FIELD_NAMES: TextFieldName[] = [
   ...REGULAR_TEXT_FIELD_NAMES,
+  ...LEYLINE_TEXT_FIELD_NAMES,
+  ...NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
+  ...TOKEN_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
 ];
@@ -548,14 +644,27 @@ export function setAffinityTextLayoutOverrides(overrides: Partial<Record<string,
 }
 
 export function getTextFieldGeometry(name: TextFieldName, affinity?: Affinity): TextFieldGeometry {
-  const base = CARD_LAYOUT[name];
+  // Variant fields (Leyline/Non-basic Leyline/Token copies of the regular
+  // set) have no hardcoded default of their own: their own overrides win
+  // when present, otherwise resolution falls all the way through to the
+  // regular field they shadow — overrides included — so an untouched
+  // variant keeps tracking the tuned regular layout.
+  const variantBase = variantFieldBaseMap.get(name);
+  if (variantBase) {
+    const own = (affinity ? affinityTextLayoutOverrides[affinityTextLayoutKey(name, affinity)] : undefined) ?? textLayoutOverrides[name];
+    return own ?? getTextFieldGeometry(variantBase, affinity);
+  }
+  const base = CARD_LAYOUT[name as LayoutTextFieldName];
   const globalOverride = textLayoutOverrides[name] ?? { x: base.x, y: base.y, w: base.w, h: base.h };
   if (!affinity) return globalOverride;
   return affinityTextLayoutOverrides[affinityTextLayoutKey(name, affinity)] ?? globalOverride;
 }
 
 function getTextFieldLayout(name: TextFieldName, affinity?: Affinity): TextFieldLayout {
-  return { ...CARD_LAYOUT[name], ...getTextFieldGeometry(name, affinity) };
+  // Styling (font/color/align) always comes from the concrete field —
+  // variant fields borrow their base regular field's.
+  const styleSource = variantFieldBaseMap.get(name) ?? (name as LayoutTextFieldName);
+  return { ...CARD_LAYOUT[styleSource], ...getTextFieldGeometry(name, affinity) };
 }
 
 // A single, real (not guide-only) override for CARD_LAYOUT.rarityEmblem —
@@ -1366,9 +1475,11 @@ export function wrapAndFitText(
 export interface CardTextFields {
   /** Which set of field layouts this card draws with — 'nexusLord' uses the
    * nl* fields exclusively (no type line/cost/flavor/power/toughness),
-   * 'nexusLordBack' the nlb* fields (same shape plus Attack), and the
-   * default draws the regular card layout. */
-  template?: 'regular' | 'nexusLord' | 'nexusLordBack';
+   * 'nexusLordBack' the nlb* fields (same shape plus Attack), the variant
+   * templates ('leyline'/'nonbasicLeyline'/'token') draw the regular card
+   * layout through their own overrideable field copies (see
+   * VariantTemplate), and the default draws the regular card layout. */
+  template?: 'regular' | 'nexusLord' | 'nexusLordBack' | VariantTemplate;
   name: string;
   /** "{Primary Type} - {secondary types joined}" — built by the caller
    * (e.g. CardEditor.tsx) since compositor.ts doesn't know about the
@@ -1431,18 +1542,24 @@ export function drawCardText(ctx: CanvasRenderingContext2D, fields: CardTextFiel
     });
     return;
   }
-  wrapAndFitText(ctx, fields.name, getTextFieldLayout('name', affinity), iconImages);
-  if (fields.typeLine) wrapAndFitText(ctx, fields.typeLine, getTextFieldLayout('typeLine', affinity), iconImages);
-  if (fields.cost !== undefined) wrapAndFitText(ctx, String(fields.cost), getTextFieldLayout('cost', affinity), iconImages);
+  // The regular layout — a variant template (Leyline/Non-basic Leyline/
+  // Token) draws the same shape through its own field copies so its
+  // positions tune independently; f() resolves each base field to the
+  // variant's copy (or the base itself for the plain regular template).
+  const variant = isVariantTemplate(fields.template) ? fields.template : undefined;
+  const f = (base: LayoutTextFieldName): TextFieldName => (variant ? variantTextFieldName(variant, base) : base);
+  wrapAndFitText(ctx, fields.name, getTextFieldLayout(f('name'), affinity), iconImages);
+  if (fields.typeLine) wrapAndFitText(ctx, fields.typeLine, getTextFieldLayout(f('typeLine'), affinity), iconImages);
+  if (fields.cost !== undefined) wrapAndFitText(ctx, String(fields.cost), getTextFieldLayout(f('cost'), affinity), iconImages);
   if (fields.rulesText) {
-    const rulesLayout = getTextFieldLayout(fields.flavorText ? 'rulesText' : 'rulesTextExpanded', affinity);
+    const rulesLayout = getTextFieldLayout(f(fields.flavorText ? 'rulesText' : 'rulesTextExpanded'), affinity);
     wrapAndFitText(ctx, fields.rulesText, rulesLayout, iconImages);
   }
-  if (fields.flavorText) wrapAndFitText(ctx, fields.flavorText, getTextFieldLayout('flavorText', affinity), iconImages);
-  if (fields.power !== undefined) wrapAndFitText(ctx, String(fields.power), getTextFieldLayout('power', affinity), iconImages);
-  if (fields.toughness !== undefined) wrapAndFitText(ctx, String(fields.toughness), getTextFieldLayout('toughness', affinity), iconImages);
-  if (fields.artistName) wrapAndFitText(ctx, fields.artistName, getTextFieldLayout('artist', affinity), iconImages);
-  if (fields.copyrightText) wrapAndFitText(ctx, fields.copyrightText, getTextFieldLayout('copyright', affinity), iconImages);
+  if (fields.flavorText) wrapAndFitText(ctx, fields.flavorText, getTextFieldLayout(f('flavorText'), affinity), iconImages);
+  if (fields.power !== undefined) wrapAndFitText(ctx, String(fields.power), getTextFieldLayout(f('power'), affinity), iconImages);
+  if (fields.toughness !== undefined) wrapAndFitText(ctx, String(fields.toughness), getTextFieldLayout(f('toughness'), affinity), iconImages);
+  if (fields.artistName) wrapAndFitText(ctx, fields.artistName, getTextFieldLayout(f('artist'), affinity), iconImages);
+  if (fields.copyrightText) wrapAndFitText(ctx, fields.copyrightText, getTextFieldLayout(f('copyright'), affinity), iconImages);
 }
 
 // A <link>-loaded webfont isn't guaranteed rasterized in canvas the first

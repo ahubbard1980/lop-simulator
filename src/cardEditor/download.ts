@@ -6,7 +6,7 @@ import type { RarityEmblem } from '../net/rarityEmblems';
 import { getAssetUrl } from '../net/storageAssets';
 import { loadNlStatIcons } from '../net/nlStatIcons';
 import { loadNlRulesBoxImage } from '../net/nlRulesBoxes';
-import { CARD_LAYOUT, loadImage, renderCardToBlob, type CardTextFields, type IconImages } from './compositor';
+import { CARD_LAYOUT, isVariantTemplate, loadImage, renderCardToBlob, type CardTextFields, type IconImages } from './compositor';
 
 // Shared with the live-preview render path in CardEditor.tsx — kept here
 // (rather than duplicated) since both the live preview and this bulk
@@ -54,7 +54,12 @@ export function buildCardFields(draft: CardDraft, copyrightSettings: Record<stri
       affinity: draft.affinity,
     };
   }
+  // The frame-class names for leylines/tokens double as their text-layout
+  // variant template names (see compositor.ts's VariantTemplate), so those
+  // drafts draw through their own overrideable field copies.
+  const cardClass = cardClassOf(draft.type);
   return {
+    template: isVariantTemplate(cardClass) ? cardClass : undefined,
     name: draft.name,
     typeLine: buildTypeLine(draft),
     cost: draft.cost,

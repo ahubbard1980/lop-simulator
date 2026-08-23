@@ -9,6 +9,9 @@ import {
   REGULAR_TEXT_FIELD_NAMES,
   NEXUS_LORD_TEXT_FIELD_NAMES,
   NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
+  VARIANT_TEXT_FIELD_NAMES_BY_TEMPLATE,
+  isVariantTemplate,
+  variantBaseField,
   FRAME_ELEMENT_NAMES,
   FRAME_ELEMENT_LAYOUT,
   getTextFieldGeometry,
@@ -18,6 +21,7 @@ import {
   loadImage,
   renderCard,
   type TextFieldName,
+  type LayoutTextFieldName,
   type FrameElementName,
   type NexusLordStatIcons,
 } from '../cardEditor/compositor';
@@ -51,8 +55,10 @@ function isNexusLordClass(cardClass: CardFrameClass): boolean {
 }
 // Compact labels for the text-position guide overlay below — space is
 // tight inside small boxes like Cost/Power/Toughness, so these are shorter
-// than TextLayoutEditor's own FIELD_LABELS.
-const TEXT_GUIDE_LABELS: Record<TextFieldName, string> = {
+// than TextLayoutEditor's own FIELD_LABELS. Variant-class fields (Leyline/
+// Non-basic Leyline/Token copies of the regular set) aren't listed — they
+// borrow their base field's label via textGuideLabel below.
+const TEXT_GUIDE_LABELS: Record<LayoutTextFieldName, string> = {
   name: 'Name',
   typeLine: 'Type',
   cost: 'Cost',
@@ -85,6 +91,9 @@ const TEXT_GUIDE_LABELS: Record<TextFieldName, string> = {
   nlBoxAnchor: 'Box Anchor',
   nlbBoxAnchor: 'Box Anchor',
 };
+function textGuideLabel(name: TextFieldName): string {
+  return TEXT_GUIDE_LABELS[variantBaseField(name) ?? (name as LayoutTextFieldName)];
+}
 const FRAME_ELEMENT_LABELS: Record<FrameElementName, string> = {
   nameplate: 'Name Plate',
   costCircle: 'Cost Circle',
@@ -331,7 +340,9 @@ export function CardFrameLibrary() {
       ? NEXUS_LORD_TEXT_FIELD_NAMES
       : cardClass === 'nexusLordBack'
         ? NEXUS_LORD_BACK_TEXT_FIELD_NAMES
-        : REGULAR_TEXT_FIELD_NAMES;
+        : isVariantTemplate(cardClass)
+          ? VARIANT_TEXT_FIELD_NAMES_BY_TEMPLATE[cardClass]
+          : REGULAR_TEXT_FIELD_NAMES;
   const textGuideBoxes = showTextGuide
     ? classTextFields.map((name) => {
         const g = getTextFieldGeometry(name, affinity);
@@ -673,7 +684,7 @@ export function CardFrameLibrary() {
               {!isNexusLordClass(cardClass) && <div className="card-frame-safe-area" style={SAFE_AREA_PREVIEW} />}
               {textGuideBoxes.map((box) => (
                 <div key={box.name} className="card-frame-text-guide" style={{ left: box.left, top: box.top, width: box.width, height: box.height }}>
-                  <span className="card-frame-text-guide-label">{TEXT_GUIDE_LABELS[box.name]}</span>
+                  <span className="card-frame-text-guide-label">{textGuideLabel(box.name)}</span>
                 </div>
               ))}
               {elementBoxes

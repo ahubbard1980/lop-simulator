@@ -512,6 +512,8 @@ alter table public.card_frames add constraint card_frames_card_class_check
 
 Upload frames via Frame Library → Card Class: "Leyline" / "Non-basic Leyline" / "Token". No new columns, storage paths, or policies — these ride the existing `card_frames` machinery (`frames/<affinity>/<class>.png`).
 
+Each of the three classes also gets its own **text layout field set** in the Text Layout tab (`ley*` / `nbley*` / `tok*` field names — all affinity-aware, all with the Lock ALL button, tokens including Power/Toughness, leylines not). No migration: the rows land in the same `card_text_layout` / `card_text_layout_affinity` tables keyed by those field names. A variant field with no row of its own falls back to the regular field it shadows (that field's tuned overrides included), so untouched fields keep tracking the regular layout — only nudged ones diverge.
+
 ### Nexus Lord stats (`intelligence`, `leadership`, `health`, `attack`)
 
 The stat circle values, edited on the Card Editor's Nexus Lords tab. Each lord has two drafts — front face (type `Nexus Lord`) and ascended back face (type `Nexus Lord Back`); Attack only exists on the back:

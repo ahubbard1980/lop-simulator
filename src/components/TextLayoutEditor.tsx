@@ -5,21 +5,30 @@ import {
   CARD_LAYOUT,
   TEXT_FIELD_NAMES,
   REGULAR_TEXT_FIELD_NAMES,
+  LEYLINE_TEXT_FIELD_NAMES,
+  NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
+  TOKEN_TEXT_FIELD_NAMES,
   NEXUS_LORD_TEXT_FIELD_NAMES,
   NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
+  VARIANT_TEMPLATE_LABELS,
   DEFAULT_LINE_HEIGHT_RATIO,
   getTextFieldGeometry,
   setTextLayoutOverrides,
   setAffinityTextLayoutOverrides,
   affinityTextLayoutKey,
+  isVariantTemplate,
+  variantBaseField,
+  variantTemplateOfField,
   loadImage,
   renderCard,
   type TextFieldName,
+  type LayoutTextFieldName,
+  type VariantTemplate,
   type CardTextFields,
   type TextFieldLayout,
   type NexusLordStatIcons,
 } from '../cardEditor/compositor';
-import { listCardFrames } from '../net/cardFrames';
+import { listCardFrames, frameClassFallback, type CardFrameClass } from '../net/cardFrames';
 import { loadNlStatIcons } from '../net/nlStatIcons';
 import { getAssetUrl } from '../net/storageAssets';
 import {
@@ -45,7 +54,7 @@ interface Geometry {
   lineHeightRatio: number;
 }
 
-const FIELD_LABELS: Record<TextFieldName, string> = {
+const FIELD_LABELS: Record<LayoutTextFieldName, string> = {
   name: 'Name',
   typeLine: 'Type Line',
   cost: 'Cost',
@@ -79,17 +88,41 @@ const FIELD_LABELS: Record<TextFieldName, string> = {
   nlBoxAnchor: 'Front: Box Stack Anchor',
   nlbBoxAnchor: 'Back: Box Stack Anchor',
 };
+// Variant fields (Leyline/Non-basic Leyline/Token copies of the regular
+// set) borrow their base field's label — within their own optgroup the
+// group name already provides the context, so no prefix needed there; the
+// panel header adds one via panelLabel below.
+function fieldLabel(name: TextFieldName): string {
+  const base = variantBaseField(name);
+  return FIELD_LABELS[base ?? (name as LayoutTextFieldName)];
+}
+function panelLabel(name: TextFieldName): string {
+  const template = variantTemplateOfField(name);
+  return template ? `${VARIANT_TEMPLATE_LABELS[template]}: ${fieldLabel(name)}` : fieldLabel(name);
+}
 
 // Which template a field belongs to decides which frame class the preview
 // renders against (and in which mode) — dragging a Nexus Lord field around
 // a regular creature frame would be aligning against the wrong picture.
-function fieldTemplate(name: TextFieldName): 'regular' | 'nexusLord' | 'nexusLordBack' {
+function fieldTemplate(name: TextFieldName): 'regular' | 'nexusLord' | 'nexusLordBack' | VariantTemplate {
   if (NEXUS_LORD_TEXT_FIELD_NAMES.includes(name)) return 'nexusLord';
   if (NEXUS_LORD_BACK_TEXT_FIELD_NAMES.includes(name)) return 'nexusLordBack';
-  return 'regular';
+  return variantTemplateOfField(name) ?? 'regular';
 }
+// NL-only concerns (full-bleed render, stat icons, no frame fallback) key
+// off this — variant fields are NOT Nexus Lord fields, they render regular.
 function isNexusLordField(name: TextFieldName): boolean {
-  return fieldTemplate(name) !== 'regular';
+  const template = fieldTemplate(name);
+  return template === 'nexusLord' || template === 'nexusLordBack';
+}
+// The field group each template's picker optgroup/overlay/Lock-ALL uses.
+function fieldGroupOf(template: ReturnType<typeof fieldTemplate>): TextFieldName[] {
+  if (template === 'nexusLord') return NEXUS_LORD_TEXT_FIELD_NAMES;
+  if (template === 'nexusLordBack') return NEXUS_LORD_BACK_TEXT_FIELD_NAMES;
+  if (template === 'leyline') return LEYLINE_TEXT_FIELD_NAMES;
+  if (template === 'nonbasicLeyline') return NONBASIC_LEYLINE_TEXT_FIELD_NAMES;
+  if (template === 'token') return TOKEN_TEXT_FIELD_NAMES;
+  return REGULAR_TEXT_FIELD_NAMES;
 }
 
 // null = editing the global/default position every affinity falls back to.
@@ -104,7 +137,7 @@ type AffinityOption = Affinity | null;
 const SAMPLE_FLAVOR = '"Sample flavor text, shown in italics-style font."';
 function sampleFields(selected: TextFieldName, affinity: AffinityOption): CardTextFields {
   const template = fieldTemplate(selected);
-  if (template !== 'regular') {
+  if (template === 'nexusLord' || template === 'nexusLordBack') {
     return {
       template,
       name: 'Vekk, the Infinite Coil',
@@ -116,17 +149,24 @@ function sampleFields(selected: TextFieldName, affinity: AffinityOption): CardTe
       affinity: affinity ?? undefined,
     };
   }
+  // The regular layout — variant templates (Leyline/Non-basic Leyline/
+  // Token) preview through their own field copies with sample content
+  // matching what those card types actually carry (leylines never have
+  // power/toughness, so drawing them would overlay the frame misleadingly).
+  const variant = isVariantTemplate(template) ? template : undefined;
+  const showsPt = !variant || variant === 'token';
   return {
+    template: variant,
     name: 'Card Name',
-    typeLine: 'Creature - Type',
+    typeLine: variant === 'leyline' ? 'Basic Leyline' : variant === 'nonbasicLeyline' ? 'Imbued Leyline - Type' : variant === 'token' ? 'Creature - Token' : 'Creature - Type',
     cost: 5,
     rulesText: 'Sample rules text previews wrapping and shrink-to-fit behavior across the width and height of this box.',
     // Editing the expanded variant specifically previews it with flavor
     // hidden (since that's the only time it's ever actually used); every
     // other field previews with flavor shown, using the normal rulesText box.
-    flavorText: selected === 'rulesTextExpanded' ? undefined : SAMPLE_FLAVOR,
-    power: 4,
-    toughness: 4,
+    flavorText: variantBaseField(selected) === 'rulesTextExpanded' || selected === 'rulesTextExpanded' ? undefined : SAMPLE_FLAVOR,
+    power: showsPt ? 4 : undefined,
+    toughness: showsPt ? 4 : undefined,
     artistName: 'Art @ Sample Artist',
     copyrightText: 'TM & C 2025 Nexus Forge',
     // undefined in "global/default" mode so the preview shows only the
@@ -156,6 +196,12 @@ const MIN_BOX_SIZE = 12;
 const AFFINITY_AWARE_FIELDS: readonly TextFieldName[] = [
   'name',
   'cost',
+  // Every variant-class field is affinity-aware — each affinity's
+  // leyline/token frame is its own painting with no shared plate geometry
+  // guaranteed, same reasoning as the NL fields below.
+  ...LEYLINE_TEXT_FIELD_NAMES,
+  ...NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
+  ...TOKEN_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
 ];
@@ -218,10 +264,16 @@ export function TextLayoutEditor() {
           overrideMap[o.fieldName] = { x: o.x, y: o.y, w: o.w, h: o.h, lineHeightRatio: o.lineHeightRatio ?? DEFAULT_LINE_HEIGHT_RATIO };
         });
         setTextLayoutOverrides(overrideMap);
-        setGlobalGeometry((prev) => {
-          const next = { ...prev };
+        // Rebuilt from scratch through getTextFieldGeometry (module maps
+        // just updated above) rather than merged per-override-row, so
+        // variant fields with no override of their own pick up their base
+        // field's freshly-loaded position instead of keeping a stale
+        // mount-time snapshot.
+        setGlobalGeometry(() => {
+          const next = {} as Record<TextFieldName, Geometry>;
           TEXT_FIELD_NAMES.forEach((name) => {
-            if (overrideMap[name]) next[name] = overrideMap[name]!;
+            const g = getTextFieldGeometry(name);
+            next[name] = { x: g.x, y: g.y, w: g.w, h: g.h, lineHeightRatio: g.lineHeightRatio ?? DEFAULT_LINE_HEIGHT_RATIO };
           });
           return next;
         });
@@ -319,19 +371,28 @@ export function TextLayoutEditor() {
   // regular frame — the layouts have nothing in common, so a fallback would
   // just be misleading). Re-runs whenever the affinity selector or the
   // selected field's template changes, not just once at mount.
-  const previewClass = fieldTemplate(selected) === 'regular' ? 'creature' : fieldTemplate(selected);
+  const previewTemplate = fieldTemplate(selected);
+  const previewClass: CardFrameClass = previewTemplate === 'regular' ? 'creature' : previewTemplate;
   useEffect(() => {
     let cancelled = false;
     const forAffinity = selectedAffinity ? frames.filter((f) => f.affinity === selectedAffinity) : frames;
-    const frame =
-      previewClass !== 'creature'
-        ? (forAffinity.find((f) => f.cardClass === previewClass) ?? frames.find((f) => f.cardClass === previewClass) ?? null)
-        : (forAffinity.find((f) => f.cardClass === 'creature') ?? forAffinity[0] ?? frames[0] ?? null);
+    // Same-affinity frame of the wanted class first, then any affinity's.
+    const byClass = (cls: CardFrameClass) =>
+      forAffinity.find((f) => f.cardClass === cls) ?? frames.find((f) => f.cardClass === cls) ?? null;
+    let frame = byClass(previewClass);
+    if (!frame && !isNexusLordField(selected)) {
+      // Variant classes fall back to the general noncreature/creature frame
+      // (mirroring findCardFrame — that's the frame those cards would
+      // actually render with); the plain creature preview keeps its
+      // anything-available fallback from before.
+      const fallback = frameClassFallback(previewClass);
+      frame = (fallback ? byClass(fallback) : null) ?? forAffinity[0] ?? frames[0] ?? null;
+    }
     if (!frame) {
       setFrameImageUrl(null);
       if (!loading)
         setMessage(
-          previewClass !== 'creature'
+          isNexusLordField(selected)
             ? `No Nexus Lord ${previewClass === 'nexusLordBack' ? 'Back' : 'Front'} frame uploaded yet — upload one in Frame Library to preview against it.`
             : 'No frame uploaded yet — upload one in Frame Library to preview text positions against it.',
         );
@@ -487,12 +548,22 @@ export function TextLayoutEditor() {
       deleteAffinityTextFieldGeometry(selected, selectedAffinity)
         .catch((err: unknown) => setMessage(err instanceof Error ? err.message : 'Could not reset position.'))
         .finally(() => setSaving(false));
+    } else if (variantBaseField(selected)) {
+      // A variant field's "default" is whatever its base regular field
+      // currently resolves to (overrides included) — deleting the variant's
+      // own row makes it fall back there, so show exactly that.
+      const g = getTextFieldGeometry(variantBaseField(selected)!);
+      const geo = { x: g.x, y: g.y, w: g.w, h: g.h, lineHeightRatio: g.lineHeightRatio ?? DEFAULT_LINE_HEIGHT_RATIO };
+      setGlobalGeometry((prev) => ({ ...prev, [selected]: geo }));
+      deleteTextFieldGeometry(selected)
+        .catch((err: unknown) => setMessage(err instanceof Error ? err.message : 'Could not reset position.'))
+        .finally(() => setSaving(false));
     } else {
       // CARD_LAYOUT's per-field `satisfies TextFieldLayout` entries each
       // infer their own exact literal shape (lineHeightRatio omitted
       // entirely on every field, since none of them set it) — cast back to
       // the general interface to read it as "optional, possibly absent".
-      const def = CARD_LAYOUT[selected] as TextFieldLayout;
+      const def = CARD_LAYOUT[selected as LayoutTextFieldName] as TextFieldLayout;
       const geo = { x: def.x, y: def.y, w: def.w, h: def.h, lineHeightRatio: def.lineHeightRatio ?? DEFAULT_LINE_HEIGHT_RATIO };
       setGlobalGeometry((prev) => ({ ...prev, [selected]: geo }));
       deleteTextFieldGeometry(selected)
@@ -509,14 +580,16 @@ export function TextLayoutEditor() {
   // one affinity's frame (e.g. the NL layout tuned on Chaos): lock those
   // positions into that affinity explicitly, then freely re-drag other
   // affinities (or even the globals) without disturbing it.
-  const selectedGroup =
-    fieldTemplate(selected) === 'nexusLord'
-      ? NEXUS_LORD_TEXT_FIELD_NAMES
-      : fieldTemplate(selected) === 'nexusLordBack'
-        ? NEXUS_LORD_BACK_TEXT_FIELD_NAMES
-        : REGULAR_TEXT_FIELD_NAMES;
+  const selectedTemplate = fieldTemplate(selected);
+  const selectedGroup = fieldGroupOf(selectedTemplate);
   const selectedGroupLabel =
-    fieldTemplate(selected) === 'nexusLord' ? 'NL Front' : fieldTemplate(selected) === 'nexusLordBack' ? 'NL Back' : 'regular-card';
+    selectedTemplate === 'nexusLord'
+      ? 'NL Front'
+      : selectedTemplate === 'nexusLordBack'
+        ? 'NL Back'
+        : isVariantTemplate(selectedTemplate)
+          ? VARIANT_TEMPLATE_LABELS[selectedTemplate]
+          : 'regular-card';
   const copyGroupToAffinity = () => {
     const affinity = selectedAffinity;
     if (!affinity) return;
@@ -557,21 +630,42 @@ export function TextLayoutEditor() {
             <optgroup label="Regular card">
               {REGULAR_TEXT_FIELD_NAMES.map((name) => (
                 <option key={name} value={name}>
-                  {FIELD_LABELS[name]}
+                  {fieldLabel(name)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Leyline">
+              {LEYLINE_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {fieldLabel(name)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Non-basic Leyline">
+              {NONBASIC_LEYLINE_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {fieldLabel(name)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Token">
+              {TOKEN_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {fieldLabel(name)}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Nexus Lord — Front">
               {NEXUS_LORD_TEXT_FIELD_NAMES.map((name) => (
                 <option key={name} value={name}>
-                  {FIELD_LABELS[name]}
+                  {fieldLabel(name)}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Nexus Lord — Back">
               {NEXUS_LORD_BACK_TEXT_FIELD_NAMES.map((name) => (
                 <option key={name} value={name}>
-                  {FIELD_LABELS[name]}
+                  {fieldLabel(name)}
                 </option>
               ))}
             </optgroup>
@@ -606,11 +700,7 @@ export function TextLayoutEditor() {
             onPointerUp={handlePointerUp}
           >
             <canvas ref={canvasRef} width={PREVIEW_W} height={PREVIEW_H} className="text-layout-canvas" />
-            {(fieldTemplate(selected) === 'nexusLord'
-              ? NEXUS_LORD_TEXT_FIELD_NAMES
-              : fieldTemplate(selected) === 'nexusLordBack'
-                ? NEXUS_LORD_BACK_TEXT_FIELD_NAMES
-                : REGULAR_TEXT_FIELD_NAMES)
+            {fieldGroupOf(fieldTemplate(selected))
               .filter((name) => name !== selected)
               .map((name) => {
               const g = effectiveGeometry(name, selectedAffinity);
@@ -645,7 +735,7 @@ export function TextLayoutEditor() {
 
           <div className="text-layout-panel">
             <span className="card-editor-filter-label">
-              {FIELD_LABELS[selected]}
+              {panelLabel(selected)}
               {selectedAffinity ? ` — ${selectedAffinity}` : ' — All affinities'}
             </span>
             <p className="text-layout-readout">

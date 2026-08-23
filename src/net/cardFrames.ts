@@ -38,6 +38,13 @@ const FRAME_CLASS_FALLBACK: Partial<Record<CardFrameClass, CardFrameClass>> = {
   token: 'creature',
 };
 
+/** The general class a dedicated class falls back to (undefined = none) —
+ * exposed for UIs (TextLayoutEditor's preview) that mirror findCardFrame's
+ * fallback against their own candidate lists. */
+export function frameClassFallback(cardClass: CardFrameClass): CardFrameClass | undefined {
+  return FRAME_CLASS_FALLBACK[cardClass];
+}
+
 // The one frame-lookup used by every render path (CardEditor's live
 // preview, download.ts's bulk export) — NOT by CardFrameLibrary, which
 // wants the exact class only so the admin can see whether a dedicated
