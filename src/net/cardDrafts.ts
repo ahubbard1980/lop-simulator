@@ -83,8 +83,12 @@ export interface CardDraft {
   secondaryTypes: string[];
   affinity: Affinity;
   cost?: number;
-  power?: number;
-  toughness?: number;
+  /** Power/toughness accept non-numeric values like "X" (X/X tokens), so
+   * they're display strings, not numbers — text columns in the DB. Rows
+   * saved before the int→text migration read back as numbers; both render
+   * identically (the compositor stringifies either way). */
+  power?: number | string;
+  toughness?: number | string;
   /** Nexus Lord stats (types 'Nexus Lord' / 'Nexus Lord Back' only) — the
    * face's value circles. Attack exists only on the ascended back face. */
   attack?: number;
@@ -135,8 +139,8 @@ interface CardDraftRow {
   secondary_types: string[] | null;
   affinity: string;
   cost: number | null;
-  power: number | null;
-  toughness: number | null;
+  power: number | string | null;
+  toughness: number | string | null;
   attack: number | null;
   intelligence: number | null;
   leadership: number | null;

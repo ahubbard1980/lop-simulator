@@ -80,6 +80,19 @@ const SPELL_TYPES: PrimaryCardType[] = [
 ];
 const LEYLINE_TYPES: PrimaryCardType[] = ['Basic Leyline', 'Imbued Leyline'];
 const TOKEN_TYPES: PrimaryCardType[] = ['Creature - Token', 'Token'];
+
+// Power/toughness accept "X" (X/X tokens) as well as numbers, so their
+// inputs are free text: numeric entries stay numbers (matching how every
+// pre-existing draft stored them), a lone x is normalized to uppercase so
+// the printed badge is consistent, anything else (e.g. "X+1", "*") is kept
+// as typed, and blank clears the field.
+function parsePtValue(raw: string): number | string | undefined {
+  const value = raw.trim();
+  if (value === '') return undefined;
+  if (/^-?\d+$/.test(value)) return Number(value);
+  if (/^x$/i.test(value)) return 'X';
+  return value;
+}
 // Nexus Lords get a real section too — both faces: 'Nexus Lord' is the
 // front (name plate, Int/Ldr/Health circles, bottom rules plaque, floating
 // boxes) and 'Nexus Lord Back' the ascended side (same shape plus Attack),
@@ -1529,17 +1542,17 @@ export function CardEditor() {
                   <label>
                     Power
                     <input
-                      type="number"
+                      type="text"
                       value={editing.power ?? ''}
-                      onChange={(e) => updateField('power', e.target.value === '' ? undefined : Number(e.target.value))}
+                      onChange={(e) => updateField('power', parsePtValue(e.target.value))}
                     />
                   </label>
                   <label>
                     Toughness
                     <input
-                      type="number"
+                      type="text"
                       value={editing.toughness ?? ''}
-                      onChange={(e) => updateField('toughness', e.target.value === '' ? undefined : Number(e.target.value))}
+                      onChange={(e) => updateField('toughness', parsePtValue(e.target.value))}
                     />
                   </label>
                   <label>

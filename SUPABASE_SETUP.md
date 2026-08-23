@@ -186,8 +186,8 @@ create table public.card_drafts (
   secondary_types text[] not null default '{}', -- creature tribal types / Sigil / Rune / Ritual / Interrupt etc. — a real array, not a comma-joined string, so a future "search my Elf cards" feature can do an exact-membership match
   affinity text not null,
   cost int,
-  power int,
-  toughness int,
+  power text, -- display value, not a number: "X" (X/X tokens) is as valid as "4"
+  toughness text,
   rarity text,
   set_name text,
   enters_ready boolean,
@@ -203,6 +203,13 @@ alter table public.card_drafts enable row level security;
 create policy "admin manages card drafts" on public.card_drafts for all
   using (auth.jwt()->>'email' = 'alan@nexusforge.gg')
   with check (auth.jwt()->>'email' = 'alan@nexusforge.gg');
+```
+
+Power/toughness are **text**, not int — the badge can print "X" (X/X tokens) as well as a number. If your table predates that, convert the columns in place (existing numeric values carry over as their string form; the app reads both):
+
+```sql
+alter table public.card_drafts alter column power type text using power::text;
+alter table public.card_drafts alter column toughness type text using toughness::text;
 ```
 
 If you already ran an earlier version of this table, bring it up to date instead of recreating it — this is safe to run regardless of which earlier version you have (covers both "never added a secondary type column" and "added the old single-text `secondary_type` column"):

@@ -1497,8 +1497,10 @@ export interface CardTextFields {
    * omits this field entirely rather than passing an empty string when the
    * admin has hidden it to make room for longer rules text. */
   flavorText?: string;
-  power?: number;
-  toughness?: number;
+  /** Display values — "X" (X/X tokens) is as valid as a number; drawn via
+   * String() either way. */
+  power?: number | string;
+  toughness?: number | string;
   /** Nexus Lord stats (nexusLord/nexusLordBack templates only) — drawn in
    * the value circles at the frame's bottom-left, top to bottom. Attack
    * exists only on the ascended back face. */
