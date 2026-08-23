@@ -275,7 +275,7 @@ create policy "admin manages card text layout" on public.card_text_layout for al
 
 ### Per-affinity text position overrides (`card_text_layout_affinity`)
 
-A second, optional tier on top of the table above — some affinities' frame art (e.g. a wider or shorter nameplate) needs its own text position, but most fields are identical across every affinity, so this only holds the specific `(field, affinity)` combinations that actually needed their own nudge via the Text Layout tab's Affinity selector. Falls back to the global position in `card_text_layout` (then the code default) when no row exists here for a given field+affinity.
+A second, optional tier on top of the table above — some affinities' frame art (e.g. a wider or shorter nameplate) needs its own text position, but most fields are identical across every affinity, so this only holds the specific `(field, affinity)` combinations that actually needed their own nudge via the Text Layout tab's Affinity selector. Falls back to the global position in `card_text_layout` (then the code default) when no row exists here for a given field+affinity. For regular cards only name/cost are offered the Affinity selector; every Nexus Lord field (both faces, stat icons included) is affinity-aware, since NL frames are hand-painted per affinity with no shared geometry guaranteed — the Text Layout tab's "Lock ALL current positions into &lt;affinity&gt;" button bulk-writes one affinity's rows from the current shared layout. This table also carries the NL floating-box stack-anchor pseudo-fields (see the rules boxes section below).
 
 ```sql
 create table public.card_text_layout_affinity (
@@ -522,6 +522,8 @@ alter table public.card_drafts add column if not exists nl_rules_boxes jsonb not
 ```
 
 Without this migration, **every** draft save fails (the app always writes the column), so run it with the other two above. The banner artwork itself is uploaded per affinity (and per card face) via Frame Library → Nexus Lord class → "Rules Box Banner" — stored at fixed paths (`nl-rules-boxes/<affinity>-<side>.png`) in the existing bucket, no table involved, same as the stat icons.
+
+Where the stack anchors vertically is adjusted per affinity+face via the "Stack anchor" ▲▼ nudger in the Floating Rules Boxes editor — persisted as rows in `card_text_layout_affinity` under the pseudo field names `nlBoxAnchor`/`nlbBoxAnchor` (never rendered as text; only `y` matters — it's the stack's offset, positive = lower). If you're auditing that table, those rows are expected, not junk.
 
 ### Art is full-bleed, not window-clipped
 
