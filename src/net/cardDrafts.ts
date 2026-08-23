@@ -26,6 +26,9 @@ export type PrimaryCardType =
   | 'Relic'
   | 'Ancient Relic'
   | 'Creature - Token'
+  /** Non-creature token (Treasure, Clue-style objects…) — type line prints
+   * e.g. "Token - Treasure". No power/toughness. */
+  | 'Token'
   | 'Nexus Lord'
   | 'Nexus Lord Back'
   | 'Basic Leyline'
@@ -54,6 +57,7 @@ export function cardClassOf(type: PrimaryCardType): CardFrameClass {
   if (type === 'Basic Leyline') return 'leyline';
   if (type === 'Imbued Leyline') return 'nonbasicLeyline';
   if (type === 'Creature - Token') return 'token';
+  if (type === 'Token') return 'noncreatureToken';
   return CREATURE_TYPES.has(type) ? 'creature' : 'noncreature';
 }
 

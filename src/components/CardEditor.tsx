@@ -79,7 +79,7 @@ const SPELL_TYPES: PrimaryCardType[] = [
   'Ancient Relic',
 ];
 const LEYLINE_TYPES: PrimaryCardType[] = ['Basic Leyline', 'Imbued Leyline'];
-const TOKEN_TYPES: PrimaryCardType[] = ['Creature - Token'];
+const TOKEN_TYPES: PrimaryCardType[] = ['Creature - Token', 'Token'];
 // Nexus Lords get a real section too — both faces: 'Nexus Lord' is the
 // front (name plate, Int/Ldr/Health circles, bottom rules plaque, floating
 // boxes) and 'Nexus Lord Back' the ascended side (same shape plus Attack),

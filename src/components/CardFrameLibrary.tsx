@@ -43,7 +43,8 @@ const CARD_CLASSES: { value: CardFrameClass; label: string }[] = [
   { value: 'noncreature', label: 'Non-Creature' },
   { value: 'leyline', label: 'Leyline' },
   { value: 'nonbasicLeyline', label: 'Non-basic Leyline' },
-  { value: 'token', label: 'Token' },
+  { value: 'token', label: 'Creature Token' },
+  { value: 'noncreatureToken', label: 'Non-creature Token' },
   { value: 'nexusLord', label: 'Nexus Lord — Front' },
   { value: 'nexusLordBack', label: 'Nexus Lord — Back' },
 ];

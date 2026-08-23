@@ -4,10 +4,10 @@ import { supabase } from './supabaseClient';
 // Creature cards need a power/toughness badge on the frame; every other
 // regular primary type doesn't — so each affinity needs two frame templates,
 // not one. 'leyline' (Basic Leyline), 'nonbasicLeyline' (Imbued Leyline),
-// and 'token' (Creature - Token) get their own frame art per affinity but
-// render exactly like regular cards otherwise (same layout/field machinery;
-// token frames are creature-shaped with the P/T badge, leyline frames
-// non-creature-shaped). 'nexusLord' (the front face) and 'nexusLordBack'
+// 'token' (Creature - Token), and 'noncreatureToken' (Token) get their own
+// frame art per affinity but render exactly like regular cards otherwise
+// (same layout/field machinery; creature-token frames carry the P/T badge,
+// leyline and non-creature-token frames don't). 'nexusLord' (the front face) and 'nexusLordBack'
 // (the ascended back, which adds an Attack stat circle) are structurally
 // different classes: full-bleed templates (no black border — art reaches
 // the bleed edge, the decorative frame floats within it) with the name
@@ -23,6 +23,7 @@ export type CardFrameClass =
   | 'leyline'
   | 'nonbasicLeyline'
   | 'token'
+  | 'noncreatureToken'
   | 'nexusLord'
   | 'nexusLordBack';
 
@@ -36,6 +37,7 @@ const FRAME_CLASS_FALLBACK: Partial<Record<CardFrameClass, CardFrameClass>> = {
   leyline: 'noncreature',
   nonbasicLeyline: 'noncreature',
   token: 'creature',
+  noncreatureToken: 'noncreature',
 };
 
 /** The general class a dedicated class falls back to (undefined = none) —

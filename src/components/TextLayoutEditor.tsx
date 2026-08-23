@@ -8,6 +8,7 @@ import {
   LEYLINE_TEXT_FIELD_NAMES,
   NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
   TOKEN_TEXT_FIELD_NAMES,
+  NONCREATURE_TOKEN_TEXT_FIELD_NAMES,
   NEXUS_LORD_TEXT_FIELD_NAMES,
   NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
   VARIANT_TEMPLATE_LABELS,
@@ -122,6 +123,7 @@ function fieldGroupOf(template: ReturnType<typeof fieldTemplate>): TextFieldName
   if (template === 'leyline') return LEYLINE_TEXT_FIELD_NAMES;
   if (template === 'nonbasicLeyline') return NONBASIC_LEYLINE_TEXT_FIELD_NAMES;
   if (template === 'token') return TOKEN_TEXT_FIELD_NAMES;
+  if (template === 'noncreatureToken') return NONCREATURE_TOKEN_TEXT_FIELD_NAMES;
   return REGULAR_TEXT_FIELD_NAMES;
 }
 
@@ -158,7 +160,16 @@ function sampleFields(selected: TextFieldName, affinity: AffinityOption): CardTe
   return {
     template: variant,
     name: 'Card Name',
-    typeLine: variant === 'leyline' ? 'Basic Leyline' : variant === 'nonbasicLeyline' ? 'Imbued Leyline - Type' : variant === 'token' ? 'Creature - Token' : 'Creature - Type',
+    typeLine:
+      variant === 'leyline'
+        ? 'Basic Leyline'
+        : variant === 'nonbasicLeyline'
+          ? 'Imbued Leyline - Type'
+          : variant === 'token'
+            ? 'Creature - Token'
+            : variant === 'noncreatureToken'
+              ? 'Token - Type'
+              : 'Creature - Type',
     cost: 5,
     rulesText: 'Sample rules text previews wrapping and shrink-to-fit behavior across the width and height of this box.',
     // Editing the expanded variant specifically previews it with flavor
@@ -202,6 +213,7 @@ const AFFINITY_AWARE_FIELDS: readonly TextFieldName[] = [
   ...LEYLINE_TEXT_FIELD_NAMES,
   ...NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
   ...TOKEN_TEXT_FIELD_NAMES,
+  ...NONCREATURE_TOKEN_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
 ];
@@ -648,8 +660,15 @@ export function TextLayoutEditor() {
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Token">
+            <optgroup label="Creature Token">
               {TOKEN_TEXT_FIELD_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {fieldLabel(name)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Non-creature Token">
+              {NONCREATURE_TOKEN_TEXT_FIELD_NAMES.map((name) => (
                 <option key={name} value={name}>
                   {fieldLabel(name)}
                 </option>

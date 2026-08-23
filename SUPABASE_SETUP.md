@@ -500,19 +500,19 @@ alter table public.card_frames add constraint card_frames_card_class_check
 
 Upload frames via Frame Library → Card Class: "Nexus Lord — Front" / "— Back". The stat icons (book/crown/heart, plus the back's sword) are NOT part of the frame image — each FACE uploads its own set via that screen's Stat Icons panel (or one-click copies an Icon Library icon) and the app composites them, so each icon's position is fine-tuned individually via the Text Layout tab's "Front: … Icon" / "Back: … Icon" fields without re-exporting frame art. They're stored at fixed paths (`nl-stat-icons/<side>-<stat>.png`; icons uploaded before the per-face split live at the un-sided legacy path and still resolve as the front's) in the existing `card-editor-assets` bucket — no table or migration involved.
 
-### Leyline & Token frame classes (`leyline`, `nonbasicLeyline`, `token`)
+### Leyline & Token frame classes (`leyline`, `nonbasicLeyline`, `token`, `noncreatureToken`)
 
-Basic Leylines, Imbued (non-basic) Leylines, and Creature Tokens each get their own frame art per affinity, but render exactly like regular cards otherwise (token frames are creature-shaped with the P/T badge; leyline frames non-creature-shaped). Until a dedicated frame is uploaded for an affinity, cards of those types keep rendering with the general `noncreature`/`creature` frame — the fallback lives in code (`findCardFrame` in `src/net/cardFrames.ts`), so nothing breaks mid-upload. Run this to allow all seven class values (it re-declares the same check constraint yet again — this supersedes both earlier versions):
+Basic Leylines, Imbued (non-basic) Leylines, Creature Tokens (type `Creature - Token`), and non-creature Tokens (type `Token`) each get their own frame art per affinity, but render exactly like regular cards otherwise (creature-token frames are creature-shaped with the P/T badge; leyline and non-creature-token frames non-creature-shaped). Until a dedicated frame is uploaded for an affinity, cards of those types keep rendering with the general `noncreature`/`creature` frame — the fallback lives in code (`findCardFrame` in `src/net/cardFrames.ts`), so nothing breaks mid-upload. Run this to allow all eight class values (it re-declares the same check constraint yet again — this supersedes the earlier versions):
 
 ```sql
 alter table public.card_frames drop constraint if exists card_frames_card_class_check;
 alter table public.card_frames add constraint card_frames_card_class_check
-  check (card_class in ('creature', 'noncreature', 'leyline', 'nonbasicLeyline', 'token', 'nexusLord', 'nexusLordBack'));
+  check (card_class in ('creature', 'noncreature', 'leyline', 'nonbasicLeyline', 'token', 'noncreatureToken', 'nexusLord', 'nexusLordBack'));
 ```
 
-Upload frames via Frame Library → Card Class: "Leyline" / "Non-basic Leyline" / "Token". No new columns, storage paths, or policies — these ride the existing `card_frames` machinery (`frames/<affinity>/<class>.png`).
+Upload frames via Frame Library → Card Class: "Leyline" / "Non-basic Leyline" / "Creature Token" / "Non-creature Token". No new columns, storage paths, or policies — these ride the existing `card_frames` machinery (`frames/<affinity>/<class>.png`). Unlike the regular creature/noncreature frames, these classes' frame files are exported from the full-card PSD (same convention as Nexus Lords, transparent margin intact) and are stretched across the entire print canvas — but the card itself keeps the regular black border treatment (art stays inset).
 
-Each of the three classes also gets its own **text layout field set** in the Text Layout tab (`ley*` / `nbley*` / `tok*` field names — all affinity-aware, all with the Lock ALL button, tokens including Power/Toughness, leylines not). No migration: the rows land in the same `card_text_layout` / `card_text_layout_affinity` tables keyed by those field names. A variant field with no row of its own falls back to the regular field it shadows (that field's tuned overrides included), so untouched fields keep tracking the regular layout — only nudged ones diverge.
+Each of these classes also gets its own **text layout field set** in the Text Layout tab (`ley*` / `nbley*` / `tok*` / `nctok*` field names — all affinity-aware, all with the Lock ALL button; only creature tokens include Power/Toughness). No migration: the rows land in the same `card_text_layout` / `card_text_layout_affinity` tables keyed by those field names. A variant field with no row of its own falls back to the regular field it shadows (that field's tuned overrides included), so untouched fields keep tracking the regular layout — only nudged ones diverge.
 
 ### Nexus Lord stats (`intelligence`, `leadership`, `health`, `attack`)
 

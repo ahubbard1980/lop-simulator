@@ -449,30 +449,33 @@ export type LayoutTextFieldName =
 // tuned regular layout until it's specifically nudged in the Text Layout
 // tab. Values intentionally match the CardFrameClass names so cardClassOf's
 // result can select the template directly.
-export type VariantTemplate = 'leyline' | 'nonbasicLeyline' | 'token';
+export type VariantTemplate = 'leyline' | 'nonbasicLeyline' | 'token' | 'noncreatureToken';
 export function isVariantTemplate(t: string | undefined): t is VariantTemplate {
-  return t === 'leyline' || t === 'nonbasicLeyline' || t === 'token';
+  return t === 'leyline' || t === 'nonbasicLeyline' || t === 'token' || t === 'noncreatureToken';
 }
 export const VARIANT_TEMPLATE_LABELS: Record<VariantTemplate, string> = {
   leyline: 'Leyline',
   nonbasicLeyline: 'Non-basic Leyline',
-  token: 'Token',
+  token: 'Creature Token',
+  noncreatureToken: 'Non-creature Token',
 };
 const VARIANT_FIELD_PREFIX: Record<VariantTemplate, string> = {
   leyline: 'ley',
   nonbasicLeyline: 'nbley',
   token: 'tok',
+  noncreatureToken: 'nctok',
 };
-// Leylines never carry power/toughness (their taxonomy types aren't
-// creature types), so their variant sets omit those two; tokens are
-// creature-shaped and keep them.
+// Leylines and non-creature tokens never carry power/toughness (their
+// taxonomy types aren't creature types), so their variant sets omit those
+// two; creature tokens are creature-shaped and keep them.
 type NoncreatureVariantBase = 'name' | 'typeLine' | 'cost' | 'rulesText' | 'rulesTextExpanded' | 'flavorText' | 'artist' | 'copyright';
 type TokenVariantBase = NoncreatureVariantBase | 'power' | 'toughness';
 export type TextFieldName =
   | LayoutTextFieldName
   | `ley${Capitalize<NoncreatureVariantBase>}`
   | `nbley${Capitalize<NoncreatureVariantBase>}`
-  | `tok${Capitalize<TokenVariantBase>}`;
+  | `tok${Capitalize<TokenVariantBase>}`
+  | `nctok${Capitalize<NoncreatureVariantBase>}`;
 
 const variantFieldBaseMap = new Map<TextFieldName, LayoutTextFieldName>();
 const variantFieldTemplateMap = new Map<TextFieldName, VariantTemplate>();
@@ -509,10 +512,12 @@ const TOKEN_VARIANT_BASES: LayoutTextFieldName[] = [
 export const LEYLINE_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('leyline', NONCREATURE_VARIANT_BASES);
 export const NONBASIC_LEYLINE_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('nonbasicLeyline', NONCREATURE_VARIANT_BASES);
 export const TOKEN_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('token', TOKEN_VARIANT_BASES);
+export const NONCREATURE_TOKEN_TEXT_FIELD_NAMES: TextFieldName[] = registerVariantFields('noncreatureToken', NONCREATURE_VARIANT_BASES);
 export const VARIANT_TEXT_FIELD_NAMES_BY_TEMPLATE: Record<VariantTemplate, TextFieldName[]> = {
   leyline: LEYLINE_TEXT_FIELD_NAMES,
   nonbasicLeyline: NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
   token: TOKEN_TEXT_FIELD_NAMES,
+  noncreatureToken: NONCREATURE_TOKEN_TEXT_FIELD_NAMES,
 };
 /** The regular field a variant field shadows, or undefined for real fields. */
 export function variantBaseField(name: TextFieldName): LayoutTextFieldName | undefined {
@@ -572,6 +577,7 @@ export const TEXT_FIELD_NAMES: TextFieldName[] = [
   ...LEYLINE_TEXT_FIELD_NAMES,
   ...NONBASIC_LEYLINE_TEXT_FIELD_NAMES,
   ...TOKEN_TEXT_FIELD_NAMES,
+  ...NONCREATURE_TOKEN_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_TEXT_FIELD_NAMES,
   ...NEXUS_LORD_BACK_TEXT_FIELD_NAMES,
 ];
