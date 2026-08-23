@@ -545,10 +545,20 @@ export function CardFrameLibrary() {
         artScale: 1,
         // template drives which field layouts apply AND whether the stat
         // icons composite (renderCard gates them on it) — name stays empty
-        // so no text draws, this preview is about the frame itself.
+        // so no text draws, this preview is about the frame itself. Variant
+        // classes (Leyline/Non-basic Leyline/Token) pass their class as the
+        // template so renderCard fits their full-card exports to the whole
+        // canvas rather than shrinking them into the safe area.
         fields: {
           name: '',
-          template: cardClass === 'nexusLord' ? 'nexusLord' : cardClass === 'nexusLordBack' ? 'nexusLordBack' : undefined,
+          template:
+            cardClass === 'nexusLord'
+              ? 'nexusLord'
+              : cardClass === 'nexusLordBack'
+                ? 'nexusLordBack'
+                : isVariantTemplate(cardClass)
+                  ? cardClass
+                  : undefined,
         },
         fullBleed: isNexusLordClass(cardClass),
         nlStatIcons: isNexusLordClass(cardClass) ? nlStatIcons : undefined,
@@ -742,6 +752,15 @@ export function CardFrameLibrary() {
                 Stat icons upload separately below. The red/orange print guide shows MakePlayingCards' real cut line and
                 safe margin — after trimming, everything outside the red line is gone, so the decorative border must sit
                 safely inside it.
+              </p>
+            ) : isVariantTemplate(cardClass) ? (
+              <p className="card-editor-hint">
+                {CARD_CLASSES.find((c) => c.value === cardClass)?.label} frames are exported from the full-card PSD (same as Nexus
+                Lords): upload the whole export with its transparent margin intact — that margin is the black border/bleed zone,
+                and the file is stretched across the entire print canvas so every element lands exactly where the PSD places it.
+                Unlike Nexus Lords the card itself still gets the regular black border treatment: art stays inset behind the
+                dashed gold line rather than reaching the card edge. The red/orange print guide shows MakePlayingCards' real cut
+                line and safe margin — the design must sit safely inside the red line.
               </p>
             ) : (
               <p className="card-editor-hint">

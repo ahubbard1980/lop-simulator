@@ -1696,12 +1696,21 @@ export async function renderCard(canvas: HTMLCanvasElement, input: RenderCardInp
     if (input.nlRulesBoxImage && nlTemplate && input.fields.nlRulesBoxes?.length) {
       drawNlRulesBoxBanners(ctx, input.nlRulesBoxImage, input.fields.nlRulesBoxes);
     }
+    // Variant templates (Leyline/Non-basic Leyline/Token) are authored in
+    // the same full-card PSD as the Nexus Lords, so their frame exports
+    // carry the whole card's footprint — the transparent margin around the
+    // decorative elements IS the black border/bleed zone, and cover-fitting
+    // that file into the inset safe area (the regular-frame convention)
+    // would shrink everything by that margin. The FRAME therefore fits the
+    // full canvas exactly like a full-bleed template, while the ART above
+    // keeps the regular inset/black-border treatment.
+    const frameFitBox = input.fullBleed || isVariantTemplate(input.fields.template) ? FULL_BLEED_ART_AREA : fitBox;
     drawCardFrame(
       ctx,
       input.frameImage,
       input.frameOffsetX ?? 0,
       input.frameOffsetY ?? 0,
-      fitBox,
+      frameFitBox,
       CARD_LAYOUT.canvasW,
       CARD_LAYOUT.canvasH,
     );
