@@ -3,17 +3,51 @@ import { supabase } from './supabaseClient';
 
 // Creature cards need a power/toughness badge on the frame; every other
 // regular primary type doesn't — so each affinity needs two frame templates,
-// not one. 'nexusLord' (the front face) and 'nexusLordBack' (the ascended
-// back, which adds an Attack stat circle) are structurally different
-// classes: full-bleed templates (no black border — art reaches the bleed
-// edge, the decorative frame floats within it) with the name plate/stat
-// circles/rules plaque layout instead of the regular card's, one uploaded
-// frame per affinity per face. See cardDrafts.ts's cardClassOf for the
-// type-to-class mapping. Rarity is NOT a frame dimension — it's a small
+// not one. 'leyline' (Basic Leyline), 'nonbasicLeyline' (Imbued Leyline),
+// and 'token' (Creature - Token) get their own frame art per affinity but
+// render exactly like regular cards otherwise (same layout/field machinery;
+// token frames are creature-shaped with the P/T badge, leyline frames
+// non-creature-shaped). 'nexusLord' (the front face) and 'nexusLordBack'
+// (the ascended back, which adds an Attack stat circle) are structurally
+// different classes: full-bleed templates (no black border — art reaches
+// the bleed edge, the decorative frame floats within it) with the name
+// plate/stat circles/rules plaque layout instead of the regular card's, one
+// uploaded frame per affinity per face. See cardDrafts.ts's cardClassOf for
+// the type-to-class mapping. Rarity is NOT a frame dimension — it's a small
 // set-specific emblem image composited on top (see rarityEmblems.ts), since
 // the frame itself doesn't change per rarity, only per affinity+class (and
 // Nexus Lords print no rarity emblem at all).
-export type CardFrameClass = 'creature' | 'noncreature' | 'nexusLord' | 'nexusLordBack';
+export type CardFrameClass =
+  | 'creature'
+  | 'noncreature'
+  | 'leyline'
+  | 'nonbasicLeyline'
+  | 'token'
+  | 'nexusLord'
+  | 'nexusLordBack';
+
+// The dedicated leyline/token classes previously rendered with the general
+// creature/noncreature frames, and any affinity whose dedicated frame
+// hasn't been uploaded yet should keep doing so rather than rendering
+// frameless — so frame resolution (findCardFrame below) tries the exact
+// class first, then this fallback. Nexus Lord classes deliberately have no
+// fallback: a regular frame drawn in full-bleed mode would be nonsense.
+const FRAME_CLASS_FALLBACK: Partial<Record<CardFrameClass, CardFrameClass>> = {
+  leyline: 'noncreature',
+  nonbasicLeyline: 'noncreature',
+  token: 'creature',
+};
+
+// The one frame-lookup used by every render path (CardEditor's live
+// preview, download.ts's bulk export) — NOT by CardFrameLibrary, which
+// wants the exact class only so the admin can see whether a dedicated
+// frame has actually been uploaded.
+export function findCardFrame(frames: CardFrame[], affinity: Affinity, cardClass: CardFrameClass): CardFrame | null {
+  const exact = frames.find((f) => f.affinity === affinity && f.cardClass === cardClass);
+  if (exact) return exact;
+  const fallback = FRAME_CLASS_FALLBACK[cardClass];
+  return fallback ? (frames.find((f) => f.affinity === affinity && f.cardClass === fallback) ?? null) : null;
+}
 
 // One uploaded frame image per affinity+class — see cardDrafts.ts for the
 // same select/upsert/delete shape this mirrors. No art-window geometry:

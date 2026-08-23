@@ -500,6 +500,18 @@ alter table public.card_frames add constraint card_frames_card_class_check
 
 Upload frames via Frame Library → Card Class: "Nexus Lord — Front" / "— Back". The stat icons (book/crown/heart, plus the back's sword) are NOT part of the frame image — each FACE uploads its own set via that screen's Stat Icons panel (or one-click copies an Icon Library icon) and the app composites them, so each icon's position is fine-tuned individually via the Text Layout tab's "Front: … Icon" / "Back: … Icon" fields without re-exporting frame art. They're stored at fixed paths (`nl-stat-icons/<side>-<stat>.png`; icons uploaded before the per-face split live at the un-sided legacy path and still resolve as the front's) in the existing `card-editor-assets` bucket — no table or migration involved.
 
+### Leyline & Token frame classes (`leyline`, `nonbasicLeyline`, `token`)
+
+Basic Leylines, Imbued (non-basic) Leylines, and Creature Tokens each get their own frame art per affinity, but render exactly like regular cards otherwise (token frames are creature-shaped with the P/T badge; leyline frames non-creature-shaped). Until a dedicated frame is uploaded for an affinity, cards of those types keep rendering with the general `noncreature`/`creature` frame — the fallback lives in code (`findCardFrame` in `src/net/cardFrames.ts`), so nothing breaks mid-upload. Run this to allow all seven class values (it re-declares the same check constraint yet again — this supersedes both earlier versions):
+
+```sql
+alter table public.card_frames drop constraint if exists card_frames_card_class_check;
+alter table public.card_frames add constraint card_frames_card_class_check
+  check (card_class in ('creature', 'noncreature', 'leyline', 'nonbasicLeyline', 'token', 'nexusLord', 'nexusLordBack'));
+```
+
+Upload frames via Frame Library → Card Class: "Leyline" / "Non-basic Leyline" / "Token". No new columns, storage paths, or policies — these ride the existing `card_frames` machinery (`frames/<affinity>/<class>.png`).
+
 ### Nexus Lord stats (`intelligence`, `leadership`, `health`, `attack`)
 
 The stat circle values, edited on the Card Editor's Nexus Lords tab. Each lord has two drafts — front face (type `Nexus Lord`) and ascended back face (type `Nexus Lord Back`); Attack only exists on the back:

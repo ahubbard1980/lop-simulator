@@ -37,6 +37,9 @@ interface Geometry {
 const CARD_CLASSES: { value: CardFrameClass; label: string }[] = [
   { value: 'creature', label: 'Creature' },
   { value: 'noncreature', label: 'Non-Creature' },
+  { value: 'leyline', label: 'Leyline' },
+  { value: 'nonbasicLeyline', label: 'Non-basic Leyline' },
+  { value: 'token', label: 'Token' },
   { value: 'nexusLord', label: 'Nexus Lord — Front' },
   { value: 'nexusLordBack', label: 'Nexus Lord — Back' },
 ];
@@ -737,7 +740,7 @@ export function CardFrameLibrary() {
                 Element Guide (right) instead to line up the actual nameplate/cost circle/rules plaque/P&amp;T badges. The
                 red/orange print guide shows MakePlayingCards' real cut line and safe margin — anything from the frame's own
                 artwork outside the red line gets physically trimmed off. Rarity isn't set here — see the Rarity Emblems tab; the
-                same {cardClass} frame is used for every rarity within {affinity}.
+                same {CARD_CLASSES.find((c) => c.value === cardClass)?.label ?? cardClass} frame is used for every rarity within {affinity}.
               </p>
             )}
           </div>

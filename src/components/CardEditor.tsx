@@ -10,7 +10,7 @@ import { NEXUS_LORD_CARDS, type NexusLordOption } from '../data/nexusLordCards';
 import { cardKey, fuzzyMatch } from '../deck/cardPool';
 import { listCardDrafts, saveCardDraft, deleteCardDraft, cardClassOf, type CardDraft, type PrimaryCardType } from '../net/cardDrafts';
 import { listSecondaryTypes, ensureSecondaryTypes } from '../net/secondaryTypes';
-import { listCardFrames, type CardFrame } from '../net/cardFrames';
+import { listCardFrames, findCardFrame, type CardFrame } from '../net/cardFrames';
 import { listRarityEmblems, type RarityEmblem } from '../net/rarityEmblems';
 import { listCardIcons, type CardIcon } from '../net/cardIcons';
 import { loadAllNlStatIcons } from '../net/nlStatIcons';
@@ -736,14 +736,16 @@ export function CardEditor() {
   );
 
   // Which uploaded frame applies to the card currently being edited —
-  // creature vs non-creature frames differ (the P/T badge), and Nexus Lords
-  // use their own full-bleed class entirely, so the class is derived from
-  // the draft's Primary Type; rarity plays no part in which frame is used
-  // (see resolvedEmblem below for how rarity is represented instead). See
+  // creature vs non-creature frames differ (the P/T badge), leylines/tokens
+  // have dedicated classes (falling back to the general frames until their
+  // own are uploaded — see findCardFrame), and Nexus Lords use their own
+  // full-bleed class entirely, so the class is derived from the draft's
+  // Primary Type; rarity plays no part in which frame is used (see
+  // resolvedEmblem below for how rarity is represented instead). See
   // CardFrameLibrary.tsx for how frames get uploaded/saved.
   const resolvedFrame = useMemo(() => {
     if (!editing) return null;
-    return frames.find((f) => f.affinity === editing.affinity && f.cardClass === cardClassOf(editing.type)) ?? null;
+    return findCardFrame(frames, editing.affinity, cardClassOf(editing.type));
   }, [frames, editing?.affinity, editing?.type]);
 
   useEffect(() => {

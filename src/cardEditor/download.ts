@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 import { cardClassOf, type CardDraft } from '../net/cardDrafts';
-import type { CardFrame } from '../net/cardFrames';
+import { findCardFrame, type CardFrame } from '../net/cardFrames';
 import type { RarityEmblem } from '../net/rarityEmblems';
 import { getAssetUrl } from '../net/storageAssets';
 import { loadNlStatIcons } from '../net/nlStatIcons';
@@ -69,8 +69,7 @@ export function buildCardFields(draft: CardDraft, copyrightSettings: Record<stri
 }
 
 function resolveFrameFor(draft: CardDraft, frames: CardFrame[]): CardFrame | null {
-  const cardClass = cardClassOf(draft.type);
-  return frames.find((f) => f.affinity === draft.affinity && f.cardClass === cardClass) ?? null;
+  return findCardFrame(frames, draft.affinity, cardClassOf(draft.type));
 }
 
 function resolveEmblemFor(draft: CardDraft, emblems: RarityEmblem[]): RarityEmblem | null {

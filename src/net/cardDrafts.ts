@@ -31,12 +31,14 @@ export type PrimaryCardType =
   | 'Basic Leyline'
   | 'Imbued Leyline';
 
-// Frame templates come in three shapes per affinity — creature frames need
-// a power/toughness badge, non-creature frames don't, and Nexus Lords use a
-// structurally different full-bleed template — see cardFrames.ts's
-// CardFrameClass. This is the taxonomy-to-frame-shape mapping, used by
-// CardEditor.tsx and download.ts to pick which uploaded frame (and which
-// render mode/field set) applies to a given draft.
+// Frame templates split per affinity along CardFrameClass — creature frames
+// carry a power/toughness badge, non-creature frames don't, leylines
+// (basic and non-basic separately) and tokens each get their own frame art
+// (rendering like non-creature/creature cards respectively), and Nexus
+// Lords use a structurally different full-bleed template — see
+// cardFrames.ts's CardFrameClass. This is the taxonomy-to-frame-shape
+// mapping, used by CardEditor.tsx and download.ts to pick which uploaded
+// frame (and which render mode/field set) applies to a given draft.
 const CREATURE_TYPES: ReadonlySet<PrimaryCardType> = new Set([
   'Creature',
   'Champion Creature',
@@ -49,6 +51,9 @@ export function isCreatureCardType(type: PrimaryCardType): boolean {
 export function cardClassOf(type: PrimaryCardType): CardFrameClass {
   if (type === 'Nexus Lord') return 'nexusLord';
   if (type === 'Nexus Lord Back') return 'nexusLordBack';
+  if (type === 'Basic Leyline') return 'leyline';
+  if (type === 'Imbued Leyline') return 'nonbasicLeyline';
+  if (type === 'Creature - Token') return 'token';
   return CREATURE_TYPES.has(type) ? 'creature' : 'noncreature';
 }
 
