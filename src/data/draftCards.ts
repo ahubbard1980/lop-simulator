@@ -114,16 +114,27 @@ function draftToTemplate(entry: CardDraftSnapshotEntry): CardTemplate | null {
 function applyDrafts(pool: CardTemplate[], entries: CardDraftSnapshotEntry[]): CardTemplate[] {
   if (entries.length === 0) return pool;
   const next = [...pool];
+  // Some printed names legitimately repeat within an affinity (the two
+  // Primal Ursari tokens) — each same-key draft consumes the NEXT matching
+  // pool slot instead of all piling onto the first, so both live entries
+  // get replaced rather than one being replaced twice. Each draft carries
+  // its own full data + render, so which duplicate lands on which slot
+  // doesn't matter.
+  const consumed = new Set<number>();
   for (const entry of entries) {
     const template = draftToTemplate(entry);
     if (!template) continue;
     const key = entry.cardKey ?? templateKey(template.affinity, template.name);
-    const idx = next.findIndex((card) => templateKey(card.affinity, card.name) === key);
+    const idx = next.findIndex((card, i) => !consumed.has(i) && templateKey(card.affinity, card.name) === key);
     // The draft wins outright, its own rendered image included — published
     // cards always ship their editor render (see the sync script), so the
     // old baked picture is never kept as a fallback.
-    if (idx >= 0) next[idx] = template;
-    else next.push(template);
+    if (idx >= 0) {
+      next[idx] = template;
+      consumed.add(idx);
+    } else {
+      next.push(template);
+    }
   }
   return next;
 }

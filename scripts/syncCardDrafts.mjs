@@ -119,6 +119,10 @@ function safeFileName(name) {
 }
 
 const PUBLISHED_IMG_DIR = join(root, 'public', 'cards', 'published');
+// Some printed names legitimately repeat (e.g. the two Primal Ursari
+// tokens at 1/1 and 2/2) — each draft still gets its own file, suffixed
+// -2/-3… on collision, so one render can't silently overwrite another.
+const usedRenderFiles = new Set();
 async function downloadRender(row) {
   if (!row.render_web_path) return undefined;
   const res = await fetch(`${url}/storage/v1/object/card-editor-assets/${row.render_web_path}`, {
@@ -128,7 +132,10 @@ async function downloadRender(row) {
     console.warn(`  warn: no render for ${row.affinity}::${row.name} (${res.status} on ${row.render_web_path})`);
     return undefined;
   }
-  const file = `${row.affinity.toLowerCase()}-${safeFileName(row.name)}${row.type === 'Nexus Lord Back' ? '-back' : ''}.webp`;
+  const base = `${row.affinity.toLowerCase()}-${safeFileName(row.name)}${row.type === 'Nexus Lord Back' ? '-back' : ''}`;
+  let file = `${base}.webp`;
+  for (let n = 2; usedRenderFiles.has(file); n += 1) file = `${base}-${n}.webp`;
+  usedRenderFiles.add(file);
   writeFileSync(join(PUBLISHED_IMG_DIR, file), Buffer.from(await res.arrayBuffer()));
   return `/cards/published/${file}`;
 }
