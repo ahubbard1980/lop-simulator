@@ -6,7 +6,16 @@ import type { RarityEmblem } from '../net/rarityEmblems';
 import { getAssetUrl, uploadAsset } from '../net/storageAssets';
 import { loadNlStatIcons } from '../net/nlStatIcons';
 import { loadNlRulesBoxImage } from '../net/nlRulesBoxes';
-import { CARD_LAYOUT, isVariantTemplate, loadImage, renderCardToBlob, type CardTextFields, type IconImages } from './compositor';
+import {
+  CARD_LAYOUT,
+  PRINT_TRIM_AREA,
+  isVariantTemplate,
+  loadImage,
+  renderCard,
+  renderCardToBlob,
+  type CardTextFields,
+  type IconImages,
+} from './compositor';
 
 // Shared with the live-preview render path in CardEditor.tsx — kept here
 // (rather than duplicated) since both the live preview and this bulk
@@ -147,6 +156,16 @@ export async function renderDraftToPrintPng(
 // upload. Returns null (never throws for a missing frame) when no frame is
 // uploaded for the draft's affinity/class yet, so bulk callers can skip
 // and report instead of aborting.
+//
+// The print PNG keeps the full canvas (MakePlayingCards needs the bleed),
+// but the WEB render is cropped to match the existing /cards/ images the
+// deck builder was built around: those are cropped exactly at the frame's
+// edge with NO baked black border (the app's CSS draws the border), so an
+// uncropped bleed canvas would display as a smaller card inside a double
+// border. Regular cards crop at artSafeArea (the frame's cover-fit box —
+// measured identical to the legacy images' crop line); full-bleed Nexus
+// Lords have frame art reaching the bleed edge, so they crop at the print
+// trim line instead, which is what a physically cut card shows.
 const WEB_RENDER_W = 480;
 export async function renderAndUploadDraft(
   draft: CardDraft,
@@ -184,11 +203,24 @@ export async function renderAndUploadDraft(
     nlStatIcons,
     nlRulesBoxImage,
   };
-  const webH = Math.round((WEB_RENDER_W * CARD_LAYOUT.canvasH) / CARD_LAYOUT.canvasW);
-  const [printBlob, webBlob] = await Promise.all([
-    renderCardToBlob(input, { width: CARD_LAYOUT.canvasW, height: CARD_LAYOUT.canvasH, type: 'image/png' }),
-    renderCardToBlob(input, { width: WEB_RENDER_W, height: webH, type: 'image/webp', quality: 0.85 }),
-  ]);
+  // One full-resolution composite serves both outputs: the print PNG is
+  // the whole canvas, the web webp a crop-and-scale of the same pixels.
+  const printCanvas = document.createElement('canvas');
+  printCanvas.width = CARD_LAYOUT.canvasW;
+  printCanvas.height = CARD_LAYOUT.canvasH;
+  await renderCard(printCanvas, input);
+  const crop = isNexusLordDraft(draft) ? PRINT_TRIM_AREA : CARD_LAYOUT.artSafeArea;
+  const webCanvas = document.createElement('canvas');
+  webCanvas.width = WEB_RENDER_W;
+  webCanvas.height = Math.round((WEB_RENDER_W * crop.h) / crop.w);
+  const webCtx = webCanvas.getContext('2d');
+  if (!webCtx) throw new Error('Could not create web render canvas.');
+  webCtx.drawImage(printCanvas, crop.x, crop.y, crop.w, crop.h, 0, 0, webCanvas.width, webCanvas.height);
+  const toBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
+    new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob failed'))), type, quality);
+    });
+  const [printBlob, webBlob] = await Promise.all([toBlob(printCanvas, 'image/png'), toBlob(webCanvas, 'image/webp', 0.85)]);
   const renderPrintPath = `renders/${draft.id}-print.png`;
   const renderWebPath = `renders/${draft.id}-web.webp`;
   await Promise.all([uploadAsset(renderPrintPath, printBlob), uploadAsset(renderWebPath, webBlob)]);
