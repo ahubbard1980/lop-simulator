@@ -162,15 +162,78 @@ export async function renderDraftToPrintPng(
 // edge with NO baked black border (the app's CSS draws the border), so an
 // uncropped bleed canvas would display as a smaller card inside a double
 // border. Regular cards crop at artSafeArea (the frame's cover-fit box —
-// measured identical to the legacy images' crop line). Full-bleed Nexus
-// Lords crop at NL_WEB_CROP below instead — the legacy
-// /cards/nexuslords/*.webp images are 600x850, which is exactly this
-// centered 720x1020 canvas region (uniform 51px inset, between the cut
-// line and the safe area) scaled by 5/6: a slim ring of art survives
-// around the decorative border and everything further out (the print
-// bleed) is clipped, so published lords sit pixel-for-pixel in the same
-// framing as the static ones.
-const NL_WEB_CROP = { x: 51, y: 51, w: 720, h: 1020 };
+// measured identical to the legacy images' crop line).
+//
+// Full-bleed Nexus Lords have no fixed frame box — each affinity's frame
+// export floats its decorative border inside a transparent bleed margin —
+// so their crop is derived from the frame file itself: the opaque
+// bounding box of the loaded frame image (mapped through the same
+// cover-fit transform drawCardFrame uses, nudge offsets included) is the
+// decorative border's true extent, and the crop is that box expanded to
+// the legacy lord images' exact 600:850 aspect so published lords occupy
+// the UI's card boxes identically to the static ones. Bleed art outside
+// the border is clipped, matching how the legacy images were framed.
+const NL_WEB_RATIO = 600 / 850;
+// Fallback if the frame's bounds can't be scanned (e.g. a fully opaque
+// file): a centered region at the legacy aspect between the cut line and
+// safe area.
+const NL_WEB_CROP_FALLBACK = { x: 51, y: 51, w: 720, h: 1020 };
+
+const nlWebCropCache = new WeakMap<HTMLImageElement, { x: number; y: number; w: number; h: number }>();
+function nlWebCrop(frameImage: HTMLImageElement, offsetX: number, offsetY: number): { x: number; y: number; w: number; h: number } {
+  const cached = nlWebCropCache.get(frameImage);
+  if (cached) return cached;
+  const compute = (): { x: number; y: number; w: number; h: number } => {
+    const fw = frameImage.naturalWidth;
+    const fh = frameImage.naturalHeight;
+    if (!fw || !fh) return NL_WEB_CROP_FALLBACK;
+    const scan = document.createElement('canvas');
+    scan.width = fw;
+    scan.height = fh;
+    const g = scan.getContext('2d');
+    if (!g) return NL_WEB_CROP_FALLBACK;
+    g.drawImage(frameImage, 0, 0);
+    const { data } = g.getImageData(0, 0, fw, fh);
+    let minX = fw;
+    let minY = fh;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < fh; y += 1) {
+      for (let x = 0; x < fw; x += 1) {
+        if (data[(y * fw + x) * 4 + 3] > 8) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return NL_WEB_CROP_FALLBACK;
+    // File coords -> canvas coords via the full-bleed cover-fit (see
+    // drawCardFrame with FULL_BLEED_ART_AREA), including the frame's nudge.
+    const s = Math.max(CARD_LAYOUT.canvasW / fw, CARD_LAYOUT.canvasH / fh);
+    const dx = (CARD_LAYOUT.canvasW - fw * s) / 2 + offsetX;
+    const dy = (CARD_LAYOUT.canvasH - fh * s) / 2 + offsetY;
+    const bx = dx + minX * s;
+    const by = dy + minY * s;
+    const bw = (maxX - minX + 1) * s;
+    const bh = (maxY - minY + 1) * s;
+    // Expand the border box to the legacy aspect (never shrink — the whole
+    // border must stay in frame), then clamp inside the canvas.
+    let w = bw;
+    let h = bh;
+    if (w / h < NL_WEB_RATIO) w = h * NL_WEB_RATIO;
+    else h = w / NL_WEB_RATIO;
+    if (w > CARD_LAYOUT.canvasW || h > CARD_LAYOUT.canvasH) return NL_WEB_CROP_FALLBACK;
+    const x = Math.min(Math.max(bx + bw / 2 - w / 2, 0), CARD_LAYOUT.canvasW - w);
+    const y = Math.min(Math.max(by + bh / 2 - h / 2, 0), CARD_LAYOUT.canvasH - h);
+    return { x, y, w, h };
+  };
+  const crop = compute();
+  nlWebCropCache.set(frameImage, crop);
+  return crop;
+}
+
 const WEB_RENDER_W = 480;
 export async function renderAndUploadDraft(
   draft: CardDraft,
@@ -214,7 +277,7 @@ export async function renderAndUploadDraft(
   printCanvas.width = CARD_LAYOUT.canvasW;
   printCanvas.height = CARD_LAYOUT.canvasH;
   await renderCard(printCanvas, input);
-  const crop = isNexusLordDraft(draft) ? NL_WEB_CROP : CARD_LAYOUT.artSafeArea;
+  const crop = isNexusLordDraft(draft) ? nlWebCrop(frameImage, frame.offsetX, frame.offsetY) : CARD_LAYOUT.artSafeArea;
   const webCanvas = document.createElement('canvas');
   webCanvas.width = WEB_RENDER_W;
   webCanvas.height = Math.round((WEB_RENDER_W * crop.h) / crop.w);
