@@ -8,4 +8,7 @@
 import type { CardDraftSnapshotEntry } from './draftCards';
 
 export const CARD_DRAFTS_SNAPSHOT: CardDraftSnapshotEntry[] = [
+  {"cardKey":"Divinity::Dawnsong Acolyte","name":"Dawnsong Acolyte","type":"Creature","secondaryTypes":["Solaren Soldier"],"affinity":"Divinity","cost":1,"power":1,"toughness":1,"rarity":"Common","set":"Awakening","rulesText":"The first time each turn you gain focus, this gets +1/+1 until end of turn.","flavorText":"Every novice of Dawnsong learned the same two arts: holding a prayer and holding a door.","showFlavorText":true,"status":"published","imageUrl":"/cards/published/divinity-Dawnsong-Acolyte.webp"},
+  {"cardKey":"Divinity::Shepherd of Light","name":"Shepherd of Light","type":"Creature","secondaryTypes":["Solaren","Priest"],"affinity":"Divinity","cost":2,"power":2,"toughness":2,"rarity":"Common","set":"Awakening","rulesText":"{actiondivinity}{resonance:1},{exhaust}:Gain 1 life. If you control 6 or more divine leylines, gain 2 life instead.","flavorText":"In the lower courts of Solreach, they learned how to stretch bread, water, and mercy farther than they should have gone.","showFlavorText":true,"status":"published","imageUrl":"/cards/published/divinity-Shepherd-of-Light.webp"},
+  {"cardKey":null,"name":"Ursari","type":"Creature - Token","secondaryTypes":["Ursari","Warrior"],"affinity":"Primal","power":1,"toughness":1,"set":"Awakening","entersReady":false,"showFlavorText":true,"status":"published","imageUrl":"/cards/published/primal-Ursari.webp"},
 ];
