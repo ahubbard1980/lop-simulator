@@ -98,6 +98,15 @@ function entryFromRow(row) {
   if (row.set_name) entry.set = row.set_name;
   if (row.enters_ready != null) entry.entersReady = row.enters_ready;
   if (row.rules_text) entry.rulesText = row.rules_text;
+  // Nexus Lord floating-box texts, in visual top-to-bottom order (the
+  // array is stored bottom-up — boxes stack upward from the plaque).
+  if (Array.isArray(row.nl_rules_boxes) && row.nl_rules_boxes.length > 0) {
+    const texts = row.nl_rules_boxes
+      .map((b) => (b && typeof b.text === 'string' ? b.text.trim() : ''))
+      .filter(Boolean)
+      .reverse();
+    if (texts.length > 0) entry.nlBoxTexts = texts;
+  }
   if (row.flavor_text) entry.flavorText = row.flavor_text;
   entry.showFlavorText = row.show_flavor_text ?? true;
   entry.status = row.status;

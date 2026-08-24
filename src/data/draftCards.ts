@@ -3,6 +3,7 @@ import type { Affinity } from './affinities';
 import type { Rarity } from './rarity';
 import type { PrimaryCardType } from '../net/cardDrafts';
 import type { CardTemplate } from './placeholderCards';
+import type { NexusLordOption, NexusLordSide } from './nexusLordCards';
 import { CARD_DRAFTS_SNAPSHOT } from './cardDraftsSnapshot';
 
 // The Card Editor's drafts are the source of truth for card data going
@@ -28,13 +29,15 @@ export interface CardDraftSnapshotEntry {
   /** Display values — "X" (X/X tokens) is as valid as a number. */
   power?: number | string;
   toughness?: number | string;
-  /** Nexus Lord stats — carried in the snapshot for future use; the merge
-   * below skips Nexus Lord drafts entirely (their live representation needs
-   * rendered face images, supplied separately in nexusLordCards.ts). */
+  /** Nexus Lord stats — the face's value circles (Attack back-face only). */
   attack?: number;
   intelligence?: number;
   leadership?: number;
   health?: number;
+  /** Nexus Lord floating-box texts in visual top-to-bottom order — combined
+   * with rulesText (the bottom plaque) into the face's reference rules text
+   * when the lord merges into the game (see applyDraftsToNexusLords). */
+  nlBoxTexts?: string[];
   rarity?: Rarity;
   set?: string;
   entersReady?: boolean;
@@ -159,4 +162,65 @@ let tokenPoolCache: CardTemplate[] | null = null;
 export function applyDraftsToTokenPool(pool: CardTemplate[]): CardTemplate[] {
   tokenPoolCache ??= applyDrafts(pool, entriesByCategory.token);
   return tokenPoolCache;
+}
+
+// ---- Nexus Lords ----
+// A lord is two drafts (front face type 'Nexus Lord', ascended back
+// 'Nexus Lord Back'), paired by cardKey base ("<affinity>::<name>" with the
+// ::front/::back suffix stripped; new lords pair by affinity+name). A lord
+// only merges when BOTH faces are published with renders — a one-faced
+// lord would be unplayable, so an incomplete pair just leaves the static
+// entry (if any) in place until the other face ships.
+
+function nlSideFromEntry(entry: CardDraftSnapshotEntry, back: boolean): NexusLordSide {
+  return {
+    imageUrl: entry.imageUrl!,
+    // The face's full reference text: floating boxes top-to-bottom, then
+    // the bottom plaque — mirroring how the printed card reads. (The game
+    // never lays this text out; the render already has it baked in.)
+    rulesText: [...(entry.nlBoxTexts ?? []), entry.rulesText ?? ''].filter(Boolean).join('\n'),
+    intelligence: entry.intelligence ?? 0,
+    leadership: entry.leadership ?? 0,
+    health: entry.health ?? 0,
+    ...(back && entry.attack !== undefined ? { attack: entry.attack } : {}),
+  };
+}
+
+let nexusLordCache: Partial<Record<Affinity, NexusLordOption[]>> | null = null;
+export function applyDraftsToNexusLords(
+  base: Partial<Record<Affinity, NexusLordOption[]>>,
+): Partial<Record<Affinity, NexusLordOption[]>> {
+  if (nexusLordCache) return nexusLordCache;
+  const pairs = new Map<string, { front?: CardDraftSnapshotEntry; back?: CardDraftSnapshotEntry }>();
+  for (const entry of CARD_DRAFTS_SNAPSHOT) {
+    if (entry.type !== 'Nexus Lord' && entry.type !== 'Nexus Lord Back') continue;
+    const key = entry.cardKey?.replace(/::(front|back)$/, '') ?? templateKey(entry.affinity, entry.name);
+    const pair = pairs.get(key) ?? {};
+    pair[entry.type === 'Nexus Lord Back' ? 'back' : 'front'] = entry;
+    pairs.set(key, pair);
+  }
+  const next: Partial<Record<Affinity, NexusLordOption[]>> = {};
+  for (const [affinity, options] of Object.entries(base) as [Affinity, NexusLordOption[]][]) {
+    next[affinity] = [...options];
+  }
+  for (const [key, pair] of pairs) {
+    if (!pair.front?.imageUrl || !pair.back?.imageUrl) continue;
+    const { front, back } = pair;
+    const option: NexusLordOption = {
+      name: front.name,
+      affinity: front.affinity,
+      set: front.set ?? back.set ?? 'Awakening',
+      front: nlSideFromEntry(front, false),
+      back: nlSideFromEntry(back, true),
+    };
+    const list = (next[front.affinity] ??= []);
+    // Matched by the lord's ORIGINAL name (the cardKey base) so a renamed
+    // lord replaces its old entry instead of appearing beside it.
+    const originalName = key.slice(key.indexOf('::') + 2);
+    const idx = list.findIndex((o) => o.name === originalName);
+    if (idx >= 0) list[idx] = option;
+    else list.push(option);
+  }
+  nexusLordCache = next;
+  return next;
 }

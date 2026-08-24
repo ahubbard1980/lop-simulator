@@ -7,6 +7,7 @@ import { SETS } from '../data/sets';
 import { getSpellPool, getLeylinePool } from '../data/cardPools';
 import { getTokenPool } from '../data/cardPools';
 import { NEXUS_LORD_CARDS, type NexusLordOption } from '../data/nexusLordCards';
+import { applyDraftsToNexusLords } from '../data/draftCards';
 import { cardKey, fuzzyMatch } from '../deck/cardPool';
 import { listCardDrafts, saveCardDraft, deleteCardDraft, cardClassOf, type CardDraft, type PrimaryCardType } from '../net/cardDrafts';
 import { listSecondaryTypes, ensureSecondaryTypes } from '../net/secondaryTypes';
@@ -968,7 +969,10 @@ export function CardEditor() {
   // draft against its own frame class.
   const nexusLordList = useMemo(() => {
     if (view !== 'nexusLords') return [];
-    return AFFINITIES.flatMap((a) => NEXUS_LORD_CARDS[a] ?? [])
+    // Merged view (published drafts over the static file) so the list —
+    // like every other section's — reflects what the game actually runs.
+    const mergedLords = applyDraftsToNexusLords(NEXUS_LORD_CARDS);
+    return AFFINITIES.flatMap((a) => mergedLords[a] ?? [])
       .flatMap((lord) =>
         (['front', 'back'] as const).map((side) => ({
           key: nexusLordDraftKey(lord, side),

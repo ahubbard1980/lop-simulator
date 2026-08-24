@@ -11,7 +11,7 @@ import { NEXUS_LORD_CARDS } from './nexusLordCards';
 import type { NexusLordOption } from './nexusLordCards';
 import { LEYLINE_CARDS } from './leylineCards';
 import { TOKEN_CARDS } from './tokenCards';
-import { applyDraftsToSpellPool, applyDraftsToLeylinePool, applyDraftsToTokenPool } from './draftCards';
+import { applyDraftsToSpellPool, applyDraftsToLeylinePool, applyDraftsToTokenPool, applyDraftsToNexusLords } from './draftCards';
 
 // Real, named card pools imported from finished art. An affinity without an
 // entry here still falls back to the procedurally-named placeholder pool —
@@ -44,9 +44,15 @@ export function getTokenPool(): CardTemplate[] {
 
 // Real Nexus Lord art gives 3 named options per affinity; an affinity
 // without one yet (Prismatic) has none — callers need to handle an empty
-// list rather than assuming every affinity has a Lord to offer.
+// list rather than assuming every affinity has a Lord to offer. Like every
+// other pool, published editor drafts merge over the static entries (a
+// lord needs BOTH faces published — see applyDraftsToNexusLords).
+function mergedNexusLords(): Partial<Record<Affinity, NexusLordOption[]>> {
+  return applyDraftsToNexusLords(NEXUS_LORD_CARDS);
+}
+
 export function getNexusLordOptions(affinity: Affinity): { name: string; imageUrl?: string }[] {
-  const real = NEXUS_LORD_CARDS[affinity];
+  const real = mergedNexusLords()[affinity];
   if (!real || real.length === 0) return [];
   return real.map((o) => ({ name: o.name, imageUrl: o.front.imageUrl }));
 }
@@ -70,7 +76,7 @@ function lordOptionToTemplate(o: NexusLordOption): CardTemplate {
 // bypassed that check — surface it loudly rather than silently building a
 // game with no Nexus Lord.
 export function resolveLordTemplate(affinity: Affinity, lordName?: string): CardTemplate {
-  const options = NEXUS_LORD_CARDS[affinity];
+  const options = mergedNexusLords()[affinity];
   if (!options || options.length === 0) {
     throw new Error(`No Nexus Lord is available for ${affinity} yet.`);
   }
@@ -82,7 +88,7 @@ export function resolveLordTemplate(affinity: Affinity, lordName?: string): Card
 // Every printable Nexus Lord for an affinity, as CardTemplate-shaped entries
 // so the deck builder can browse them the same way it browses spells.
 export function getNexusLordTemplates(affinity: Affinity): CardTemplate[] {
-  const options = NEXUS_LORD_CARDS[affinity];
+  const options = mergedNexusLords()[affinity];
   if (!options || options.length === 0) return [];
   return options.map(lordOptionToTemplate);
 }
