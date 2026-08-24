@@ -205,6 +205,8 @@ create policy "admin manages card drafts" on public.card_drafts for all
   with check (auth.jwt()->>'email' = 'alan@nexusforge.gg');
 ```
 
+This table is the **source of truth for card data**: `npm run sync-cards` (see `scripts/syncCardDrafts.mjs`) snapshots every `ready_for_review` draft into `src/data/cardDraftsSnapshot.ts`, which the game merges over its static pools at load. The script authenticates with the **service_role** key — the table's RLS admits only the admin login, and scripts have no browser session — read from the gitignored `.env.local` (`SUPABASE_SERVICE_ROLE_KEY=…`, copied from Project Settings → API keys). The service_role key bypasses ALL row-level security; it must never be committed or shipped to the client.
+
 Power/toughness are **text**, not int — the badge can print "X" (X/X tokens) as well as a number. If your table predates that, convert the columns in place (existing numeric values carry over as their string form; the app reads both):
 
 ```sql

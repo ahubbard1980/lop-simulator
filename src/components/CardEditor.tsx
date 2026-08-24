@@ -5,7 +5,7 @@ import type { Rarity } from '../data/rarity';
 import { AFFINITIES } from '../data/affinities';
 import { SETS } from '../data/sets';
 import { getSpellPool, getLeylinePool } from '../data/cardPools';
-import { TOKEN_CARDS } from '../data/tokenCards';
+import { getTokenPool } from '../data/cardPools';
 import { NEXUS_LORD_CARDS, type NexusLordOption } from '../data/nexusLordCards';
 import { cardKey, fuzzyMatch } from '../deck/cardPool';
 import { listCardDrafts, saveCardDraft, deleteCardDraft, cardClassOf, type CardDraft, type PrimaryCardType } from '../net/cardDrafts';
@@ -485,7 +485,7 @@ function RulesTextToolbar({
 // this editor's "live" browse list, separate from getUniversalCardIndex()
 // since that one also includes Nexus Lords, which are out of scope here.
 function buildLiveIndex(): Map<string, CardTemplate> {
-  const all: CardTemplate[] = [...AFFINITIES.flatMap((a) => [...getSpellPool(a), ...getLeylinePool(a)]), ...TOKEN_CARDS];
+  const all: CardTemplate[] = [...AFFINITIES.flatMap((a) => [...getSpellPool(a), ...getLeylinePool(a)]), ...getTokenPool()];
   return new Map(all.map((c) => [cardKey(c), c]));
 }
 

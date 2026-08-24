@@ -1,4 +1,5 @@
-import { TOKEN_CARDS } from '../data/tokenCards';
+import type { CardTemplate } from '../data/placeholderCards';
+import { getTokenPool } from '../data/cardPools';
 import { useGameStore } from '../engine/store';
 import { useUIStore } from '../engine/uiStore';
 import type { CardInstance } from '../engine/types';
@@ -18,7 +19,7 @@ export function TokenPickerOverlay() {
   if (!tokenPicker) return null;
   const { player } = tokenPicker;
 
-  const makeToken = (tmpl: (typeof TOKEN_CARDS)[number]) => {
+  const makeToken = (tmpl: CardTemplate) => {
     dispatch({
       player: activeViewer,
       type: 'CREATE_TOKEN',
@@ -51,7 +52,7 @@ export function TokenPickerOverlay() {
           <button onClick={closeTokenPicker}>Close</button>
         </div>
         <div className="zone-overlay-grid">
-          {TOKEN_CARDS.map((tmpl, i) => {
+          {getTokenPool().map((tmpl, i) => {
             const previewCard: CardInstance = {
               id: `token-preview-${i}`,
               name: tmpl.name,

@@ -10,6 +10,8 @@ import { PRISMATIC_CARDS } from './prismaticCards';
 import { NEXUS_LORD_CARDS } from './nexusLordCards';
 import type { NexusLordOption } from './nexusLordCards';
 import { LEYLINE_CARDS } from './leylineCards';
+import { TOKEN_CARDS } from './tokenCards';
+import { applyDraftsToSpellPool, applyDraftsToLeylinePool, applyDraftsToTokenPool } from './draftCards';
 
 // Real, named card pools imported from finished art. An affinity without an
 // entry here still falls back to the procedurally-named placeholder pool —
@@ -24,12 +26,20 @@ export const REAL_CARD_POOLS: Partial<Record<Affinity, CardTemplate[]>> = {
   Prismatic: PRISMATIC_CARDS,
 };
 
+// Every pool getter merges the Card Editor's ready-for-review draft
+// snapshot over the static data (see draftCards.ts) — the editor is the
+// source of truth for card data; the hand-transcribed files above are the
+// base that survives wherever no draft exists.
 export function getSpellPool(affinity: Affinity): CardTemplate[] {
-  return REAL_CARD_POOLS[affinity] ?? buildPlaceholderPool(affinity);
+  return applyDraftsToSpellPool(REAL_CARD_POOLS[affinity] ?? buildPlaceholderPool(affinity), affinity);
 }
 
 export function getLeylinePool(affinity: Affinity): CardTemplate[] {
-  return LEYLINE_CARDS.filter((tmpl) => tmpl.affinity === affinity);
+  return applyDraftsToLeylinePool(LEYLINE_CARDS).filter((tmpl) => tmpl.affinity === affinity);
+}
+
+export function getTokenPool(): CardTemplate[] {
+  return applyDraftsToTokenPool(TOKEN_CARDS);
 }
 
 // Real Nexus Lord art gives 3 named options per affinity; an affinity
