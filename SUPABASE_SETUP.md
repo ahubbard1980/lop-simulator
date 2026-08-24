@@ -193,7 +193,7 @@ create table public.card_drafts (
   enters_ready boolean,
   rules_text text,
   flavor_text text,
-  status text not null default 'draft', -- draft | ready_for_review
+  status text not null default 'draft', -- draft | ready | published (workflow: Draft -> Ready -> Published)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -205,7 +205,11 @@ create policy "admin manages card drafts" on public.card_drafts for all
   with check (auth.jwt()->>'email' = 'alan@nexusforge.gg');
 ```
 
-This table is the **source of truth for card data**: `npm run sync-cards` (see `scripts/syncCardDrafts.mjs`) snapshots every `ready_for_review` draft into `src/data/cardDraftsSnapshot.ts`, which the game merges over its static pools at load. The script authenticates with the **service_role** key — the table's RLS admits only the admin login, and scripts have no browser session — read from the gitignored `.env.local` (`SUPABASE_SERVICE_ROLE_KEY=…`, copied from Project Settings → API keys). The service_role key bypasses ALL row-level security; it must never be committed or shipped to the client.
+This table is the **source of truth for card data**. The workflow is three stages — `draft` (WIP) → `ready` (finished, awaiting publish) → `published` (shipped): the editor's **Publish** button (single card, multi-selected cards, or a whole affinity/set — bulk scopes take only Ready cards so unfinished drafts can't ship by accident) re-renders each card, uploads its images, and flags it published. `npm run sync-cards` (see `scripts/syncCardDrafts.mjs`) then snapshots every **published** draft — data into `src/data/cardDraftsSnapshot.ts`, rendered web image into `public/cards/published/` — which the game merges over its static pools at load. If your table predates the rename, migrate the old status value once:
+
+```sql
+update public.card_drafts set status = 'ready' where status = 'ready_for_review';
+``` The script authenticates with the **service_role** key — the table's RLS admits only the admin login, and scripts have no browser session — read from the gitignored `.env.local` (`SUPABASE_SERVICE_ROLE_KEY=…`, copied from Project Settings → API keys). The service_role key bypasses ALL row-level security; it must never be committed or shipped to the client.
 
 Power/toughness are **text**, not int — the badge can print "X" (X/X tokens) as well as a number. If your table predates that, convert the columns in place (existing numeric values carry over as their string form; the app reads both):
 

@@ -6,9 +6,10 @@ import type { CardTemplate } from './placeholderCards';
 import { CARD_DRAFTS_SNAPSHOT } from './cardDraftsSnapshot';
 
 // The Card Editor's drafts are the source of truth for card data going
-// forward: scripts/syncCardDrafts.mjs snapshots every draft marked Ready
-// for review into cardDraftsSnapshot.ts, and this module merges that
-// snapshot over the static hand-transcribed pools at load. A draft that
+// forward: scripts/syncCardDrafts.mjs snapshots every Published draft
+// (workflow: Draft -> Ready -> Published) into cardDraftsSnapshot.ts, and
+// this module merges that snapshot over the static hand-transcribed pools
+// at load. A draft that
 // edits an existing card (matched by cardKey, the same "<affinity>::<name>"
 // convention as src/deck/cardPool.ts's cardKey — not imported from there to
 // keep this module out of that one's import cycle) replaces it in place;
@@ -41,6 +42,11 @@ export interface CardDraftSnapshotEntry {
   flavorText?: string;
   showFlavorText: boolean;
   status: string;
+  /** The draft's own rendered card image, downloaded by the sync script
+   * into public/cards/published/. Every published card renders its own
+   * picture — there's no falling back to an older baked image (missing art
+   * is handled by giving the draft placeholder art in the editor). */
+  imageUrl?: string;
 }
 
 // Editor taxonomy -> engine CardType. Nexus Lords map to null (skipped, see
@@ -88,6 +94,7 @@ function draftToTemplate(entry: CardDraftSnapshotEntry): CardTemplate | null {
   if (entry.flavorText && entry.showFlavorText) template.flavorText = entry.flavorText;
   if (entry.set) template.set = entry.set;
   if (entry.entersReady !== undefined) template.entersReady = entry.entersReady;
+  if (entry.imageUrl) template.imageUrl = entry.imageUrl;
   // A Basic Leyline is identified live by having NO rarity (see
   // cardPool.ts's isBasicLeyline), so the draft's rarity field is dropped
   // for basics and defaulted for imbued ones to preserve that invariant.
@@ -109,20 +116,11 @@ function applyDrafts(pool: CardTemplate[], entries: CardDraftSnapshotEntry[]): C
     if (!template) continue;
     const key = entry.cardKey ?? templateKey(template.affinity, template.name);
     const idx = next.findIndex((card) => templateKey(card.affinity, card.name) === key);
-    if (idx >= 0) {
-      // The draft's data wins, but the pre-rendered card image (and any
-      // dual-face fields) stays until a new render replaces the file — a
-      // stale picture beats no picture, and print exports come from the
-      // editor anyway.
-      next[idx] = {
-        ...template,
-        imageUrl: next[idx].imageUrl,
-        backImageUrl: next[idx].backImageUrl,
-        backRulesText: next[idx].backRulesText,
-      };
-    } else {
-      next.push(template);
-    }
+    // The draft wins outright, its own rendered image included — published
+    // cards always ship their editor render (see the sync script), so the
+    // old baked picture is never kept as a fallback.
+    if (idx >= 0) next[idx] = template;
+    else next.push(template);
   }
   return next;
 }

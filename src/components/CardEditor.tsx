@@ -25,10 +25,8 @@ import {
 import { getRarityEmblemLayoutOverride } from '../net/rarityEmblemLayout';
 import { listCopyrightTextSettings } from '../net/copyrightText';
 import {
-  CARD_LAYOUT,
   getArtSafeArea,
   loadImage,
-  renderCardToBlob,
   setTextLayoutOverrides,
   setAffinityTextLayoutOverrides,
   setRarityEmblemLayoutOverride,
@@ -49,7 +47,7 @@ import {
   type NexusLordStatIcons,
   type NlRulesBox,
 } from '../cardEditor/compositor';
-import { buildCardFields, isNexusLordDraft, nlDraftSide, resolveCopyrightText, downloadDrafts, type DownloadFormat } from '../cardEditor/download';
+import { buildCardFields, isNexusLordDraft, nlDraftSide, resolveCopyrightText, downloadDrafts, renderAndUploadDraft, type DownloadFormat } from '../cardEditor/download';
 import { CardEditorCanvas, MIN_ZOOM } from './CardEditorCanvas';
 import { CardFrameLibrary } from './CardFrameLibrary';
 import { RarityEmblemLibrary } from './RarityEmblemLibrary';
@@ -80,6 +78,14 @@ const SPELL_TYPES: PrimaryCardType[] = [
 ];
 const LEYLINE_TYPES: PrimaryCardType[] = ['Basic Leyline', 'Imbued Leyline'];
 const TOKEN_TYPES: PrimaryCardType[] = ['Creature - Token', 'Token'];
+
+// Draft workflow badges — 'draft' (WIP) -> 'ready' (finished, awaiting
+// publish) -> 'published' (in the game once `npm run sync-cards` runs).
+const STATUS_BADGES: Record<CardDraft['status'], string> = {
+  draft: 'Draft',
+  ready: 'Ready',
+  published: 'Published',
+};
 
 // Power/toughness accept "X" (X/X tokens) as well as numbers, so their
 // inputs are free text: numeric entries stay numbers (matching how every
@@ -578,6 +584,10 @@ export function CardEditor() {
   const [saving, setSaving] = useState(false);
   const [uploadingArt, setUploadingArt] = useState(false);
   const [markingReady, setMarkingReady] = useState(false);
+  // Draft ids ticked in the list for a bulk "Publish Selected" — only rows
+  // that actually have a draft offer a checkbox (a live card with no draft
+  // has nothing to publish; its data is already in the static files).
+  const [publishSelection, setPublishSelection] = useState<Set<string>>(new Set());
   const [artImageUrl, setArtImageUrl] = useState<string | null>(null);
   const [frameImageUrl, setFrameImageUrl] = useState<string | null>(null);
   const [rarityEmblemImageUrl, setRarityEmblemImageUrl] = useState<string | null>(null);
@@ -995,6 +1005,7 @@ export function CardEditor() {
     setSelectedKey(null);
     setEditing(null);
     setMessage(null);
+    setPublishSelection(new Set());
   };
 
   const selectExisting = (key: string) => {
@@ -1175,52 +1186,83 @@ export function CardEditor() {
     }
   };
 
-  const handleMarkReady = async () => {
-    if (!editing || !resolvedFrame || !frameImageUrl) {
-      setMessage('Make sure a frame is uploaded for this affinity/card class first.');
+  // The one status-transition path: re-renders each target from its current
+  // data (see renderAndUploadDraft — a status change should never trust a
+  // stale upload), uploads both output resolutions, and saves the new
+  // status. Shared by Mark Ready (single card -> 'ready') and every Publish
+  // surface (single, multi-select, per-affinity, per-set -> 'published').
+  // Targets with no frame uploaded for their affinity/class are skipped and
+  // counted rather than aborting the batch.
+  const transitionDrafts = async (targets: CardDraft[], status: 'ready' | 'published') => {
+    const verb = status === 'published' ? 'Publish' : 'Mark Ready';
+    if (targets.length === 0) {
+      setMessage(`No cards to ${verb.toLowerCase()}.`);
       return;
     }
     setMarkingReady(true);
     setMessage(null);
+    let done = 0;
+    let skipped = 0;
     try {
-      const [frameImage, artImage, rarityEmblemImage] = await Promise.all([
-        loadImage(frameImageUrl),
-        artImageUrl ? loadImage(artImageUrl) : Promise.resolve(null),
-        rarityEmblemImageUrl ? loadImage(rarityEmblemImageUrl) : Promise.resolve(null),
-      ]);
-      const input = {
-        frameImage,
-        frameOffsetX: resolvedFrame.offsetX,
-        frameOffsetY: resolvedFrame.offsetY,
-        artImage,
-        artOffsetX: editing.artOffsetX,
-        artOffsetY: editing.artOffsetY,
-        artScale: editing.artScale,
-        fields: buildCardFields(editing, copyrightSettings),
-        rarityEmblemImage,
-        iconImages,
-        fullBleed: isNexusLordDraft(editing),
-        nlStatIcons: editingNlSide ? nlStatIconSets[editingNlSide] : undefined,
-        nlRulesBoxImage,
-      };
-      const webW = 480;
-      const webH = Math.round((webW * CARD_LAYOUT.canvasH) / CARD_LAYOUT.canvasW);
-      const [printBlob, webBlob] = await Promise.all([
-        renderCardToBlob(input, { width: CARD_LAYOUT.canvasW, height: CARD_LAYOUT.canvasH, type: 'image/png' }),
-        renderCardToBlob(input, { width: webW, height: webH, type: 'image/webp', quality: 0.85 }),
-      ]);
-      const printPath = `renders/${editing.id}-print.png`;
-      const webPath = `renders/${editing.id}-web.webp`;
-      await Promise.all([uploadAsset(printPath, printBlob), uploadAsset(webPath, webBlob)]);
-      const saved = await saveCardDraft({ ...editing, renderPrintPath: printPath, renderWebPath: webPath, status: 'ready_for_review' });
-      setDrafts((prev) => [saved, ...prev.filter((d) => d.id !== saved.id)]);
-      setEditing(saved);
-      setMessage('Marked ready for review.');
+      for (const target of targets) {
+        if (targets.length > 1) setMessage(`${verb}ing ${done + skipped + 1}/${targets.length}: ${target.name}…`);
+        const paths = await renderAndUploadDraft(target, frames, rarityEmblems, copyrightSettings, iconImages);
+        if (!paths) {
+          skipped += 1;
+          continue;
+        }
+        const saved = await saveCardDraft({ ...target, ...paths, status });
+        setDrafts((prev) => [saved, ...prev.filter((d) => d.id !== saved.id)]);
+        setEditing((e) => (e && e.id === saved.id ? saved : e));
+        done += 1;
+      }
+      const skippedNote = skipped > 0 ? ` Skipped ${skipped} with no frame uploaded for their affinity/class.` : '';
+      setMessage(
+        status === 'published'
+          ? `Published ${done} card(s).${skippedNote} Run npm run sync-cards to pull them into the game.`
+          : done === 1 && skipped === 0
+            ? 'Marked Ready.'
+            : `Marked ${done} card(s) Ready.${skippedNote}`,
+      );
+      if (status === 'published') setPublishSelection(new Set());
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Could not render/mark ready.');
+      setMessage(err instanceof Error ? err.message : `Could not ${verb.toLowerCase()}.`);
     } finally {
       setMarkingReady(false);
     }
+  };
+
+  const handleMarkReady = () => {
+    if (!editing) return;
+    void transitionDrafts([editing], 'ready');
+  };
+
+  const togglePublishSelection = (id: string) =>
+    setPublishSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // Bulk publish over an affinity or set intentionally takes only the
+  // drafts already marked Ready — half-finished 'draft'-status work should
+  // never ship by accident; the completion message says how many were left
+  // behind so the flow stays teachable. Explicit selection (the checkboxes
+  // and the open card's own Publish button) publishes exactly what was
+  // picked regardless of status — the designer chose those by hand.
+  const publishScope = (matches: (d: CardDraft) => boolean, label: string) => {
+    const targets = drafts.filter((d) => d.status === 'ready' && matches(d));
+    const leftBehind = drafts.filter((d) => d.status === 'draft' && matches(d)).length;
+    if (targets.length === 0) {
+      setMessage(
+        leftBehind > 0
+          ? `No Ready cards in ${label} — ${leftBehind} draft(s) there need to be marked Ready first.`
+          : `No Ready cards in ${label}.`,
+      );
+      return;
+    }
+    void transitionDrafts(targets, 'published');
   };
 
   // Shared by the single-card, per-set, and per-affinity download buttons —
@@ -1381,6 +1423,37 @@ export function CardEditor() {
           </button>
         </div>
 
+        {/* Bulk publish — reuses the Set/Affinity pickers above. Scope
+            publishes only Ready cards (see publishScope); the checkbox
+            selection publishes exactly what was ticked. */}
+        <div className="card-editor-bulk-download">
+          <span className="card-editor-filter-label">Publish</span>
+          <button
+            type="button"
+            className="btn-gold"
+            disabled={markingReady || publishSelection.size === 0}
+            onClick={() => void transitionDrafts(drafts.filter((d) => publishSelection.has(d.id)), 'published')}
+          >
+            Publish Selected ({publishSelection.size})
+          </button>
+          <button
+            type="button"
+            className="btn-gold"
+            disabled={markingReady}
+            onClick={() => publishScope((d) => d.set === downloadSet, downloadSet)}
+          >
+            Publish Set ({downloadSet})
+          </button>
+          <button
+            type="button"
+            className="btn-gold"
+            disabled={markingReady}
+            onClick={() => publishScope((d) => d.affinity === downloadAffinity, downloadAffinity)}
+          >
+            Publish Affinity ({downloadAffinity})
+          </button>
+        </div>
+
         {loadError && <div className="card-editor-error">{loadError}</div>}
 
         {loading ? (
@@ -1392,13 +1465,20 @@ export function CardEditor() {
                 <div className="card-editor-section-label">New Cards</div>
                 <ul className="card-editor-list">
                   {newDrafts.map((d) => (
-                    <li key={d.id}>
+                    <li key={d.id} className="card-editor-list-row">
+                      <input
+                        type="checkbox"
+                        className="card-editor-list-check"
+                        checked={publishSelection.has(d.id)}
+                        onChange={() => togglePublishSelection(d.id)}
+                        aria-label={`Select ${d.name || 'untitled card'} for publish`}
+                      />
                       <button
                         className={`card-editor-list-item${selectedKey === d.id ? ' active' : ''}`}
                         onClick={() => selectDraft(d)}
                       >
                         <span className="card-editor-list-name">{d.name || '(untitled)'}</span>
-                        <span className="card-editor-draft-badge">New</span>
+                        <span className={`card-editor-draft-badge status-${d.status}`}>{STATUS_BADGES[d.status]}</span>
                       </button>
                     </li>
                   ))}
@@ -1411,7 +1491,16 @@ export function CardEditor() {
             <ul className="card-editor-list">
               {view === 'nexusLords'
                 ? nexusLordList.map(({ key, lord, side, draft }) => (
-                    <li key={key}>
+                    <li key={key} className="card-editor-list-row">
+                      {draft && (
+                        <input
+                          type="checkbox"
+                          className="card-editor-list-check"
+                          checked={publishSelection.has(draft.id)}
+                          onChange={() => togglePublishSelection(draft.id)}
+                          aria-label={`Select ${lord.name} (${side}) for publish`}
+                        />
+                      )}
                       <button
                         className={`card-editor-list-item${selectedKey === key ? ' active' : ''}`}
                         onClick={() => selectNexusLord(lord, side)}
@@ -1420,18 +1509,27 @@ export function CardEditor() {
                         <span className="card-editor-list-meta">
                           {lord.affinity} · {side === 'back' ? 'Back (Ascended)' : 'Front'}
                         </span>
-                        {draft && <span className="card-editor-draft-badge">Draft</span>}
+                        {draft && <span className={`card-editor-draft-badge status-${draft.status}`}>{STATUS_BADGES[draft.status]}</span>}
                       </button>
                     </li>
                   ))
                 : liveList.map(({ key, tmpl, primaryType, draft }) => (
-                    <li key={key}>
+                    <li key={key} className="card-editor-list-row">
+                      {draft && (
+                        <input
+                          type="checkbox"
+                          className="card-editor-list-check"
+                          checked={publishSelection.has(draft.id)}
+                          onChange={() => togglePublishSelection(draft.id)}
+                          aria-label={`Select ${tmpl.name} for publish`}
+                        />
+                      )}
                       <button className={`card-editor-list-item${selectedKey === key ? ' active' : ''}`} onClick={() => selectExisting(key)}>
                         <span className="card-editor-list-name">{tmpl.name}</span>
                         <span className="card-editor-list-meta">
                           {tmpl.affinity} · {primaryType}
                         </span>
-                        {draft && <span className="card-editor-draft-badge">Draft</span>}
+                        {draft && <span className={`card-editor-draft-badge status-${draft.status}`}>{STATUS_BADGES[draft.status]}</span>}
                       </button>
                     </li>
                   ))}
@@ -1447,7 +1545,7 @@ export function CardEditor() {
           <>
             <div className="card-editor-form-header">
               <h2>{editing.cardKey ? 'Edit Card' : 'New Card'}</h2>
-              {editing.status === 'ready_for_review' && <span className="card-editor-draft-badge">Ready for review</span>}
+              <span className={`card-editor-draft-badge status-${editing.status}`}>{STATUS_BADGES[editing.status]}</span>
               {message && <span className="card-editor-message">{message}</span>}
             </div>
 
@@ -1767,7 +1865,10 @@ export function CardEditor() {
                     {uploadingArt ? 'Uploading…' : artImageUrl ? 'Replace Art' : 'Upload Art'}
                   </button>
                   <button className="btn-gold" disabled={markingReady} onClick={handleMarkReady}>
-                    {markingReady ? 'Rendering…' : 'Mark Ready for Review'}
+                    {markingReady ? 'Rendering…' : 'Mark Ready'}
+                  </button>
+                  <button className="btn-gold" disabled={markingReady} onClick={() => void transitionDrafts([editing], 'published')}>
+                    {markingReady ? 'Rendering…' : 'Publish'}
                   </button>
                   <div className="card-editor-art-download-row">
                     <select

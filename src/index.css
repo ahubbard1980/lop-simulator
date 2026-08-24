@@ -3085,6 +3085,32 @@ button {
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* Workflow status colors — Draft keeps the base gold; Ready reads as
+   "staged" blue, Published as "live" green. */
+.card-editor-draft-badge.status-ready {
+  background: #7fb4d9;
+}
+.card-editor-draft-badge.status-published {
+  background: #7fc98a;
+}
+
+/* List rows with a publish checkbox alongside the (still full-width) item
+   button. */
+.card-editor-list-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-editor-list-row .card-editor-list-item {
+  flex: 1;
+  min-width: 0;
+}
+.card-editor-list-check {
+  flex: 0 0 auto;
+  accent-color: var(--gold-bright);
+  cursor: pointer;
+}
 .card-editor-form-panel {
   flex: 1 1 auto;
   overflow-y: auto;

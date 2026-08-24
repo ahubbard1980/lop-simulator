@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import { cardClassOf, type CardDraft } from '../net/cardDrafts';
 import { findCardFrame, type CardFrame } from '../net/cardFrames';
 import type { RarityEmblem } from '../net/rarityEmblems';
-import { getAssetUrl } from '../net/storageAssets';
+import { getAssetUrl, uploadAsset } from '../net/storageAssets';
 import { loadNlStatIcons } from '../net/nlStatIcons';
 import { loadNlRulesBoxImage } from '../net/nlRulesBoxes';
 import { CARD_LAYOUT, isVariantTemplate, loadImage, renderCardToBlob, type CardTextFields, type IconImages } from './compositor';
@@ -137,6 +137,62 @@ export async function renderDraftToPrintPng(
     },
     { width: CARD_LAYOUT.canvasW, height: CARD_LAYOUT.canvasH, type: 'image/png' },
   );
+}
+
+// Renders a draft at both output resolutions (full print PNG + the 480px
+// web webp the game itself serves) and uploads them to the draft's fixed
+// renders/ paths — the render half of Mark Ready and Publish, shared by
+// the single-card buttons and the bulk publish flows so every status
+// transition re-renders from current data rather than trusting a stale
+// upload. Returns null (never throws for a missing frame) when no frame is
+// uploaded for the draft's affinity/class yet, so bulk callers can skip
+// and report instead of aborting.
+const WEB_RENDER_W = 480;
+export async function renderAndUploadDraft(
+  draft: CardDraft,
+  frames: CardFrame[],
+  rarityEmblems: RarityEmblem[],
+  copyrightSettings: Record<string, string>,
+  iconImages: IconImages = {},
+): Promise<{ renderPrintPath: string; renderWebPath: string } | null> {
+  const frame = resolveFrameFor(draft, frames);
+  if (!frame) return null;
+  const frameUrl = await getAssetUrl(frame.storagePath);
+  if (!frameUrl) return null;
+  const emblem = resolveEmblemFor(draft, rarityEmblems);
+  const [frameImage, artImage, rarityEmblemImage, nlStatIcons, nlRulesBoxImage] = await Promise.all([
+    loadImage(frameUrl),
+    draft.artStoragePath ? getAssetUrl(draft.artStoragePath).then((u) => (u ? loadImage(u) : null)) : Promise.resolve(null),
+    emblem ? getAssetUrl(emblem.storagePath).then((u) => (u ? loadImage(u) : null)) : Promise.resolve(null),
+    isNexusLordDraft(draft) ? loadNlStatIcons(nlDraftSide(draft)) : Promise.resolve(undefined),
+    isNexusLordDraft(draft) && draft.nlRulesBoxes.length > 0
+      ? loadNlRulesBoxImage(draft.affinity, nlDraftSide(draft))
+      : Promise.resolve(null),
+  ]);
+  const input = {
+    frameImage,
+    frameOffsetX: frame.offsetX,
+    frameOffsetY: frame.offsetY,
+    artImage,
+    artOffsetX: draft.artOffsetX,
+    artOffsetY: draft.artOffsetY,
+    artScale: draft.artScale,
+    fields: buildCardFields(draft, copyrightSettings),
+    rarityEmblemImage,
+    iconImages,
+    fullBleed: isNexusLordDraft(draft),
+    nlStatIcons,
+    nlRulesBoxImage,
+  };
+  const webH = Math.round((WEB_RENDER_W * CARD_LAYOUT.canvasH) / CARD_LAYOUT.canvasW);
+  const [printBlob, webBlob] = await Promise.all([
+    renderCardToBlob(input, { width: CARD_LAYOUT.canvasW, height: CARD_LAYOUT.canvasH, type: 'image/png' }),
+    renderCardToBlob(input, { width: WEB_RENDER_W, height: webH, type: 'image/webp', quality: 0.85 }),
+  ]);
+  const renderPrintPath = `renders/${draft.id}-print.png`;
+  const renderWebPath = `renders/${draft.id}-web.webp`;
+  await Promise.all([uploadAsset(renderPrintPath, printBlob), uploadAsset(renderWebPath, webBlob)]);
+  return { renderPrintPath, renderWebPath };
 }
 
 function triggerDownload(blob: Blob, filename: string): void {

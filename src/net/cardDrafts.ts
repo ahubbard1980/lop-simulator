@@ -124,7 +124,10 @@ export interface CardDraft {
    * both output resolutions — see CardEditor.tsx. */
   renderWebPath?: string;
   renderPrintPath?: string;
-  status: 'draft' | 'ready_for_review';
+  /** Workflow: 'draft' (WIP) -> 'ready' (finished, awaiting publish) ->
+   * 'published' (part of the game — `npm run sync-cards` pulls published
+   * drafts, data and rendered image both, into the live card pools). */
+  status: 'draft' | 'ready' | 'published';
 }
 
 // DB row shape (snake_case columns) <-> the camelCase CardDraft the rest of
@@ -194,7 +197,10 @@ function rowToDraft(row: CardDraftRow): CardDraft {
     artScale: row.art_scale,
     renderWebPath: row.render_web_path ?? undefined,
     renderPrintPath: row.render_print_path ?? undefined,
-    status: row.status as CardDraft['status'],
+    // 'ready_for_review' predates the three-stage workflow — read it as
+    // 'ready' so rows saved before the rename keep working (the SQL
+    // migration in SUPABASE_SETUP.md rewrites them for real).
+    status: (row.status === 'ready_for_review' ? 'ready' : row.status) as CardDraft['status'],
   };
 }
 
