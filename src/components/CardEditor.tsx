@@ -1249,6 +1249,35 @@ export function CardEditor() {
       return next;
     });
 
+  // Every draft id currently visible in the list (all three row varieties),
+  // respecting the active filters/search — so "Select all shown" + the
+  // affinity/set filters make publishing a whole wave one click without a
+  // 300-checkbox marathon. Live cards with no draft have nothing to
+  // publish, so they don't count.
+  const visibleDraftIds = useMemo(() => {
+    const ids = newDrafts.map((d) => d.id);
+    if (view === 'nexusLords') {
+      nexusLordList.forEach(({ draft }) => {
+        if (draft) ids.push(draft.id);
+      });
+    } else {
+      liveList.forEach(({ draft }) => {
+        if (draft) ids.push(draft.id);
+      });
+    }
+    return ids;
+  }, [newDrafts, view, nexusLordList, liveList]);
+  const allShownSelected = visibleDraftIds.length > 0 && visibleDraftIds.every((id) => publishSelection.has(id));
+  const toggleSelectAllShown = () =>
+    setPublishSelection((prev) => {
+      if (allShownSelected) {
+        const next = new Set(prev);
+        visibleDraftIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...visibleDraftIds]);
+    });
+
   // Bulk publish over an affinity or set intentionally takes only the
   // drafts already marked Ready — half-finished 'draft'-status work should
   // never ship by accident; the completion message says how many were left
@@ -1432,6 +1461,9 @@ export function CardEditor() {
             selection publishes exactly what was ticked. */}
         <div className="card-editor-bulk-download">
           <span className="card-editor-filter-label">Publish</span>
+          <button type="button" className="btn-gray" disabled={markingReady || visibleDraftIds.length === 0} onClick={toggleSelectAllShown}>
+            {allShownSelected ? 'Clear selection' : `Select all shown (${visibleDraftIds.length})`}
+          </button>
           <button
             type="button"
             className="btn-gold"
