@@ -8,7 +8,6 @@ import { loadNlStatIcons } from '../net/nlStatIcons';
 import { loadNlRulesBoxImage } from '../net/nlRulesBoxes';
 import {
   CARD_LAYOUT,
-  PRINT_TRIM_AREA,
   isVariantTemplate,
   loadImage,
   renderCard,
@@ -163,9 +162,15 @@ export async function renderDraftToPrintPng(
 // edge with NO baked black border (the app's CSS draws the border), so an
 // uncropped bleed canvas would display as a smaller card inside a double
 // border. Regular cards crop at artSafeArea (the frame's cover-fit box —
-// measured identical to the legacy images' crop line); full-bleed Nexus
-// Lords have frame art reaching the bleed edge, so they crop at the print
-// trim line instead, which is what a physically cut card shows.
+// measured identical to the legacy images' crop line). Full-bleed Nexus
+// Lords crop at NL_WEB_CROP below instead — the legacy
+// /cards/nexuslords/*.webp images are 600x850, which is exactly this
+// centered 720x1020 canvas region (uniform 51px inset, between the cut
+// line and the safe area) scaled by 5/6: a slim ring of art survives
+// around the decorative border and everything further out (the print
+// bleed) is clipped, so published lords sit pixel-for-pixel in the same
+// framing as the static ones.
+const NL_WEB_CROP = { x: 51, y: 51, w: 720, h: 1020 };
 const WEB_RENDER_W = 480;
 export async function renderAndUploadDraft(
   draft: CardDraft,
@@ -209,7 +214,7 @@ export async function renderAndUploadDraft(
   printCanvas.width = CARD_LAYOUT.canvasW;
   printCanvas.height = CARD_LAYOUT.canvasH;
   await renderCard(printCanvas, input);
-  const crop = isNexusLordDraft(draft) ? PRINT_TRIM_AREA : CARD_LAYOUT.artSafeArea;
+  const crop = isNexusLordDraft(draft) ? NL_WEB_CROP : CARD_LAYOUT.artSafeArea;
   const webCanvas = document.createElement('canvas');
   webCanvas.width = WEB_RENDER_W;
   webCanvas.height = Math.round((WEB_RENDER_W * crop.h) / crop.w);
