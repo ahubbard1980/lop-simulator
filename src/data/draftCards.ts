@@ -145,8 +145,28 @@ const entriesByCategory: Record<DraftPoolCategory, CardDraftSnapshotEntry[]> = {
   token: [],
 };
 CARD_DRAFTS_SNAPSHOT.forEach((entry) => {
+  if (entry.type === 'Nexus Lord' || entry.type === 'Nexus Lord Back') return;
   entriesByCategory[categoryOf(entry.type)].push(entry);
 });
+
+// A draft can re-home a live card — change its affinity (a Divinity relic
+// becoming Prismatic) or its pool category (a spell becoming a token). The
+// draft itself merges into its NEW bucket, but the original static entry
+// would be left stranded in the old pool under the old identity, so every
+// pool getter first drops static cards whose key is claimed by a draft
+// that now lives in a different bucket.
+const claimedKeyBucket = new Map<string, string>();
+(['spell', 'leyline', 'token'] as const).forEach((category) => {
+  entriesByCategory[category].forEach((entry) => {
+    if (entry.cardKey) claimedKeyBucket.set(entry.cardKey, `${category}:${entry.affinity}`);
+  });
+});
+function withoutRelocated(pool: CardTemplate[], bucketOf: (card: CardTemplate) => string): CardTemplate[] {
+  return pool.filter((card) => {
+    const claimed = claimedKeyBucket.get(templateKey(card.affinity, card.name));
+    return claimed === undefined || claimed === bucketOf(card);
+  });
+}
 
 // Merged-pool caches — the snapshot is static per build, so each pool only
 // needs merging once however often the getters run (deck-builder lists call
@@ -156,7 +176,7 @@ export function applyDraftsToSpellPool(pool: CardTemplate[], affinity: Affinity)
   const cached = spellPoolCache.get(affinity);
   if (cached) return cached;
   const merged = applyDrafts(
-    pool,
+    withoutRelocated(pool, () => `spell:${affinity}`),
     entriesByCategory.spell.filter((e) => e.affinity === affinity),
   );
   spellPoolCache.set(affinity, merged);
@@ -165,13 +185,19 @@ export function applyDraftsToSpellPool(pool: CardTemplate[], affinity: Affinity)
 
 let leylinePoolCache: CardTemplate[] | null = null;
 export function applyDraftsToLeylinePool(pool: CardTemplate[]): CardTemplate[] {
-  leylinePoolCache ??= applyDrafts(pool, entriesByCategory.leyline);
+  leylinePoolCache ??= applyDrafts(
+    withoutRelocated(pool, (card) => `leyline:${card.affinity}`),
+    entriesByCategory.leyline,
+  );
   return leylinePoolCache;
 }
 
 let tokenPoolCache: CardTemplate[] | null = null;
 export function applyDraftsToTokenPool(pool: CardTemplate[]): CardTemplate[] {
-  tokenPoolCache ??= applyDrafts(pool, entriesByCategory.token);
+  tokenPoolCache ??= applyDrafts(
+    withoutRelocated(pool, (card) => `token:${card.affinity}`),
+    entriesByCategory.token,
+  );
   return tokenPoolCache;
 }
 
