@@ -927,40 +927,43 @@ function computeRulesBoxSlices(img: HTMLImageElement): NlRulesBoxSlices {
     if (ctx) {
       ctx.drawImage(img, 0, 0);
       const data = ctx.getImageData(0, 0, w, h).data;
-      // Middle rows are semi-transparent by design; cap rows are dominated
-      // by opaque ornament (or fully transparent overshoot around it).
-      // Classify each row by its average alpha across the middle half of
-      // the width (ornament tips at the far edges would skew full-width
-      // averages), then take the longest run of "semi" rows as the middle.
-      const x0 = Math.floor(w * 0.25);
-      const x1 = Math.floor(w * 0.75);
-      const semi: boolean[] = [];
+      // The middle fill is semi-transparent BY DESIGN (Arcane's blue sits
+      // around alpha 204) while ornament pixels are effectively opaque —
+      // so a row belongs to a cap iff it contains a meaningful number of
+      // near-opaque pixels, scanned across the FULL width. An earlier
+      // average-alpha heuristic failed exactly where it mattered: an
+      // ornamental bar's center pendant dips well below the bar into the
+      // fill, and a row that's mostly fill with a narrow opaque pendant
+      // still AVERAGES "semi" — those pendant rows landed in the
+      // stretchable middle and visibly smeared on tall boxes.
+      const rowHasOpaque: boolean[] = [];
+      const needed = Math.max(2, Math.round(w * 0.0015));
       for (let y = 0; y < h; y += 1) {
-        let sum = 0;
-        for (let x = x0; x < x1; x += 2) {
-          sum += data[(y * w + x) * 4 + 3];
-        }
-        const avg = sum / Math.ceil((x1 - x0) / 2);
-        semi.push(avg > 60 && avg < 245);
-      }
-      let bestStart = -1;
-      let bestLen = 0;
-      let runStart = -1;
-      for (let y = 0; y <= h; y += 1) {
-        if (y < h && semi[y]) {
-          if (runStart < 0) runStart = y;
-        } else if (runStart >= 0) {
-          if (y - runStart > bestLen) {
-            bestLen = y - runStart;
-            bestStart = runStart;
+        let opaque = 0;
+        for (let x = 0; x < w; x += 2) {
+          if (data[(y * w + x) * 4 + 3] > 250) {
+            opaque += 1;
+            if (opaque >= needed) break;
           }
-          runStart = -1;
         }
+        rowHasOpaque.push(opaque >= needed);
       }
-      // Only trust the detection when the middle band is a substantial part
-      // of the file — tiny runs mean the asset isn't shaped as expected.
-      if (bestLen > h * 0.3) {
-        result = { topCap: bestStart, bottomCap: h - (bestStart + bestLen) };
+      // Top cap extends to the LAST ornament row in the top half; bottom
+      // cap starts at the FIRST ornament row in the bottom half.
+      let topCap = 0;
+      for (let y = 0; y < Math.floor(h / 2); y += 1) {
+        if (rowHasOpaque[y]) topCap = y + 1;
+      }
+      let bottomStart = h;
+      for (let y = h - 1; y >= Math.floor(h / 2); y -= 1) {
+        if (rowHasOpaque[y]) bottomStart = y;
+      }
+      const bottomCap = h - bottomStart;
+      // Only trust the detection when both caps exist and a substantial
+      // pure-fill middle remains — anything else means the asset isn't
+      // shaped as expected (e.g. fully opaque art), so keep the fallback.
+      if (topCap > 0 && bottomCap > 0 && h - topCap - bottomCap > h * 0.2) {
+        result = { topCap, bottomCap };
       }
     }
   } catch {
