@@ -9,7 +9,7 @@ import { getTokenPool } from '../data/cardPools';
 import { NEXUS_LORD_CARDS, type NexusLordOption } from '../data/nexusLordCards';
 import { applyDraftsToNexusLords } from '../data/draftCards';
 import { cardKey, fuzzyMatch } from '../deck/cardPool';
-import { listCardDrafts, saveCardDraft, deleteCardDraft, cardClassOf, type CardDraft, type PrimaryCardType } from '../net/cardDrafts';
+import { listCardDrafts, saveCardDraft, deleteCardDraft, getCardDraft, updateDraftStatus, cardClassOf, type CardDraft, type PrimaryCardType } from '../net/cardDrafts';
 import { listSecondaryTypes, ensureSecondaryTypes } from '../net/secondaryTypes';
 import { listCardFrames, findCardFrame, type CardFrame } from '../net/cardFrames';
 import { listRarityEmblems, type RarityEmblem } from '../net/rarityEmblems';
@@ -1210,12 +1210,27 @@ export function CardEditor() {
     try {
       for (const target of targets) {
         if (targets.length > 1) setMessage(`${verb}ing ${done + skipped + 1}/${targets.length}: ${target.name}…`);
-        const paths = await renderAndUploadDraft(target, frames, rarityEmblems, copyrightSettings, iconImages);
+        // NEVER publish this tab's copy of a card. A status transition
+        // re-fetches the row fresh so a tab left open across days of
+        // editing can only flip the status — it can no longer roll the
+        // card's data back to whatever it held when it loaded (the
+        // 2026-09-12 mass-revert incident). The one exception is the card
+        // open in the form: publishing it deliberately includes the edits
+        // on screen, so those are SAVED first and the saved row is the
+        // fresh row. A brand-new draft not in the DB yet is saved first too.
+        let fresh: CardDraft;
+        if (editing && editing.id === target.id) {
+          fresh = await saveCardDraft(editing);
+        } else {
+          const loaded = await getCardDraft(target.id);
+          fresh = loaded ?? (await saveCardDraft(target));
+        }
+        const paths = await renderAndUploadDraft(fresh, frames, rarityEmblems, copyrightSettings, iconImages);
         if (!paths) {
           skipped += 1;
           continue;
         }
-        const saved = await saveCardDraft({ ...target, ...paths, status });
+        const saved = await updateDraftStatus(fresh.id, status, paths.renderPrintPath, paths.renderWebPath);
         setDrafts((prev) => [saved, ...prev.filter((d) => d.id !== saved.id)]);
         setEditing((e) => (e && e.id === saved.id ? saved : e));
         done += 1;

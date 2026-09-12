@@ -254,6 +254,38 @@ export async function saveCardDraft(draft: CardDraft): Promise<CardDraft> {
   return rowToDraft(data as CardDraftRow);
 }
 
+// One fresh row straight from the DB — the safety anchor for status
+// transitions (see updateDraftStatus below).
+export async function getCardDraft(id: string): Promise<CardDraft | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('card_drafts').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? rowToDraft(data as CardDraftRow) : null;
+}
+
+// Publish / Mark Ready flip — updates ONLY the status and render paths.
+// Deliberately NOT an upsert of the whole draft: a bulk status change must
+// never write a browser tab's possibly-stale copy of a card over the
+// database. (A tab left open across days of editing did exactly that on
+// 2026-09-12 and mass-reverted cards; this narrow UPDATE makes that
+// impossible — the worst a stale tab can now do is flip a status.)
+export async function updateDraftStatus(
+  id: string,
+  status: CardDraft['status'],
+  renderPrintPath: string,
+  renderWebPath: string,
+): Promise<CardDraft> {
+  if (!supabase) throw new Error('Not connected.');
+  const { data, error } = await supabase
+    .from('card_drafts')
+    .update({ status, render_print_path: renderPrintPath, render_web_path: renderWebPath })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return rowToDraft(data as CardDraftRow);
+}
+
 export async function deleteCardDraft(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('card_drafts').delete().eq('id', id);
