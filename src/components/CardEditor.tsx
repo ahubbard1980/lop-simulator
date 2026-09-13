@@ -4,8 +4,7 @@ import type { Affinity } from '../data/affinities';
 import type { Rarity } from '../data/rarity';
 import { AFFINITIES } from '../data/affinities';
 import { SETS } from '../data/sets';
-import { getSpellPool, getLeylinePool } from '../data/cardPools';
-import { getTokenPool } from '../data/cardPools';
+import { getStaticSpellPool, getStaticLeylinePool, getStaticTokenPool } from '../data/cardPools';
 import { NEXUS_LORD_CARDS, type NexusLordOption } from '../data/nexusLordCards';
 import { applyDraftsToNexusLords } from '../data/draftCards';
 import { cardKey, fuzzyMatch } from '../deck/cardPool';
@@ -492,7 +491,11 @@ function RulesTextToolbar({
 // this editor's "live" browse list, separate from getUniversalCardIndex()
 // since that one also includes Nexus Lords, which are out of scope here.
 function buildLiveIndex(): Map<string, CardTemplate> {
-  const all: CardTemplate[] = [...AFFINITIES.flatMap((a) => [...getSpellPool(a), ...getLeylinePool(a)]), ...getTokenPool()];
+  // Static catalog only (see getStatic*Pool) — never the draft-merged
+  // getters. The editor feeds the merge, so browsing the merged pools would
+  // list every published brand-new draft twice and let a phantom copy spawn
+  // a duplicate draft.
+  const all: CardTemplate[] = [...AFFINITIES.flatMap((a) => [...getStaticSpellPool(a), ...getStaticLeylinePool(a)]), ...getStaticTokenPool()];
   return new Map(all.map((c) => [cardKey(c), c]));
 }
 

@@ -42,6 +42,23 @@ export function getTokenPool(): CardTemplate[] {
   return applyDraftsToTokenPool(TOKEN_CARDS);
 }
 
+// RAW static catalog — the hand-transcribed pools WITHOUT the draft-snapshot
+// merge. The Card Editor must browse these, not the merged getters above:
+// the editor is what feeds the merge, so if it browsed the merged pools,
+// every brand-new draft it published would be injected back into its own
+// "live catalog" and appear a second time (and selecting that phantom copy
+// would spawn a duplicate draft). The game uses the merged getters; the
+// editor uses these.
+export function getStaticSpellPool(affinity: Affinity): CardTemplate[] {
+  return REAL_CARD_POOLS[affinity] ?? buildPlaceholderPool(affinity);
+}
+export function getStaticLeylinePool(affinity: Affinity): CardTemplate[] {
+  return LEYLINE_CARDS.filter((tmpl) => tmpl.affinity === affinity);
+}
+export function getStaticTokenPool(): CardTemplate[] {
+  return TOKEN_CARDS;
+}
+
 // Real Nexus Lord art gives 3 named options per affinity; an affinity
 // without one yet (Prismatic) has none — callers need to handle an empty
 // list rather than assuming every affinity has a Lord to offer. Like every
