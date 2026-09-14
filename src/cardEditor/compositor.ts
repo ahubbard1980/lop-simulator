@@ -87,6 +87,10 @@ export interface TextFieldLayout {
    * falling back to an overflowing single line at minFontPx if it still
    * doesn't fit there. */
   singleLine?: boolean;
+  /** Renders the whole field in the italic face (e.g. flavor text). The
+   * per-word *asterisk* italic markers in rules text still toggle on top of
+   * this, so a field can be italic-by-default and honor inline emphasis. */
+  italic?: boolean;
   /** 'middle' centers the wrapped block vertically within the box instead
    * of anchoring it to the top — used by the floating rules boxes, where a
    * box is often taller than its text and top-anchored text reads as
@@ -184,7 +188,7 @@ export const CARD_LAYOUT = {
   } satisfies TextFieldLayout,
   flavorText: {
     ...scaleAroundCenter(52 + PAD_X, 872 + PAD_Y, 640, 83),
-    font: 'Lancelot, Georgia, serif', weight: 400, color: '#1c1a16',
+    font: '"IM Fell English", Georgia, serif', weight: 400, color: '#1c1a16', italic: true,
     maxFontPx: Math.round(9 * PT_TO_PX), minFontPx: Math.round(9 * PT_TO_PX * 0.6), align: 'left',
   } satisfies TextFieldLayout,
   // Power/toughness are separate badges (sword/shield icon baked into the
@@ -1215,7 +1219,10 @@ const ICON_SIZE_SCALE = 1.3;
 const ICON_VALUE_FONT_RATIO = 0.68;
 
 function tokenFont(layout: TextFieldLayout, fontPx: number, italic: boolean): string {
-  return `${italic ? 'italic ' : ''}${layout.weight} ${fontPx}px ${layout.font}`;
+  // A field can be italic-by-default (layout.italic, e.g. flavor text); an
+  // inline *asterisk* run toggles italic on top of that.
+  const useItalic = italic || layout.italic;
+  return `${useItalic ? 'italic ' : ''}${layout.weight} ${fontPx}px ${layout.font}`;
 }
 
 interface IconGlyphMetrics {
@@ -1340,7 +1347,7 @@ export function wrapAndFitText(
   let fontPx = layout.maxFontPx;
   let iconMetrics: IconGlyphMetrics = { size: fontPx, yOffset: 0 };
   for (; fontPx >= layout.minFontPx; fontPx -= 1) {
-    ctx.font = `${layout.weight} ${fontPx}px ${layout.font}`;
+    ctx.font = tokenFont(layout, fontPx, false);
     const spaceWidth = ctx.measureText(' ').width;
     iconMetrics = iconGlyphMetrics(ctx, layout, fontPx);
     if (layout.singleLine) {
@@ -1391,7 +1398,7 @@ export function wrapAndFitText(
     if (totalHeight <= layout.h) break;
   }
 
-  ctx.font = `${layout.weight} ${fontPx}px ${layout.font}`;
+  ctx.font = tokenFont(layout, fontPx, false);
   ctx.fillStyle = layout.color;
   const spaceWidth = ctx.measureText(' ').width;
   const iconGap = iconMetrics.size * ICON_GAP_RATIO;
@@ -1593,7 +1600,7 @@ function ensureFontsReady(): Promise<void> {
       safeLoad('400 40px "Noto Serif Devanagari"'),
       safeLoad('700 40px "Noto Serif Devanagari"'),
       safeLoad('900 40px "Noto Serif Devanagari"'),
-      safeLoad('400 40px Lancelot'),
+      safeLoad('italic 400 40px "IM Fell English"'),
       document.fonts.ready,
     ]).then(() => undefined);
   }
