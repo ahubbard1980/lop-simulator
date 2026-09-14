@@ -63,5 +63,4 @@ export const CORRUPTION_CARDS: CardTemplate[] = [
   // Printed as part of the "Awakening: Prismatic" sheet (see prismaticCards.ts)
   // as one of a cross-affinity Ancient Relic cycle, but keyed here by its own
   // printed Corruption affinity so the per-affinity card pools stay accurate.
-  { name: 'The Oath Cinche', type: 'Ancient Relic', affinity: 'Corruption', cost: 4, rarity: 'Epic', set: SET, rulesText: 'This can only be played if this shares an affinity with you. When this enters and at the start of the turn, choose a creature and put a Corruption counter on it. When a creature you control with a Corruption counter deals combat damage to an Enemy, Siphon 1. Action, 5, Exhaust this: Choose a creature with a Corruption counter on it and gain control of it for as long as this remains expended. You may choose to not ready this at the start of the turn.', imageUrl: img('The Oath Cinche') },
 ];

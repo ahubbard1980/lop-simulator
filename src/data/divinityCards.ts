@@ -64,5 +64,4 @@ export const DIVINITY_CARDS: CardTemplate[] = [
   // Printed as part of the "Awakening: Prismatic" sheet (see prismaticCards.ts)
   // as one of a cross-affinity Ancient Relic cycle, but keyed here by its own
   // printed Divinity affinity so the per-affinity card pools stay accurate.
-  { name: 'Radiance, Shield of Seris', type: 'Ancient Relic', affinity: 'Divinity', cost: 4, rarity: 'Epic', set: SET, rulesText: 'This can only be played if it shares an affinity with you. While this is ready, creatures you control have Protection 1. Action, 4, Exhaust this: Return up to two creature cards from your dustrealm to play. When this becomes ready or leaves play, destroy those creatures. At the start of your turn, pay 1 or ready this.', imageUrl: img('Radiance, Shield of Seris') },
 ];
