@@ -942,8 +942,21 @@ export function CardEditor() {
 
   const draftsByCardKey = useMemo(() => {
     const m = new Map<string, CardDraft>();
+    // Primary index: the draft's own cardKey (its identity when it was
+    // created — for a card edited in place this equals affinity::name).
     drafts.forEach((d) => {
       if (d.cardKey) m.set(d.cardKey, d);
+    });
+    // Secondary index: the draft's CURRENT affinity::name. A renamed or
+    // re-homed card keeps its original cardKey, but the merged live card is
+    // keyed by its current affinity::name — without this, the editor can't
+    // find the draft, loads a blank template, and the card looks like it
+    // lost its art and data (it didn't; the draft is intact). Don't clobber
+    // an exact cardKey match.
+    drafts.forEach((d) => {
+      if (!d.cardKey) return;
+      const current = `${d.affinity}::${d.name}`;
+      if (!m.has(current)) m.set(current, d);
     });
     return m;
   }, [drafts]);
