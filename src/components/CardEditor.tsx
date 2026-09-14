@@ -4,7 +4,7 @@ import type { Affinity } from '../data/affinities';
 import type { Rarity } from '../data/rarity';
 import { AFFINITIES } from '../data/affinities';
 import { SETS } from '../data/sets';
-import { getStaticSpellPool, getStaticLeylinePool, getStaticTokenPool } from '../data/cardPools';
+import { getSpellPool, getLeylinePool, getTokenPool } from '../data/cardPools';
 import { NEXUS_LORD_CARDS, type NexusLordOption } from '../data/nexusLordCards';
 import { applyDraftsToNexusLords } from '../data/draftCards';
 import { cardKey, fuzzyMatch } from '../deck/cardPool';
@@ -491,11 +491,16 @@ function RulesTextToolbar({
 // this editor's "live" browse list, separate from getUniversalCardIndex()
 // since that one also includes Nexus Lords, which are out of scope here.
 function buildLiveIndex(): Map<string, CardTemplate> {
-  // Static catalog only (see getStatic*Pool) — never the draft-merged
-  // getters. The editor feeds the merge, so browsing the merged pools would
-  // list every published brand-new draft twice and let a phantom copy spawn
-  // a duplicate draft.
-  const all: CardTemplate[] = [...AFFINITIES.flatMap((a) => [...getStaticSpellPool(a), ...getStaticLeylinePool(a)]), ...getStaticTokenPool()];
+  // Merged pools (static + published-draft snapshot). This MUST include the
+  // drafts: a card re-homed to a new affinity or renamed exists only as a
+  // draft under a new key, so browsing static-only would HIDE it and show
+  // the stale original under its old affinity (the 2026-09-14 regression
+  // that made re-homed cards look deleted). The merge also drops a static
+  // card that a draft has relocated (see draftCards.ts's withoutRelocated),
+  // so nothing double-shows from that. Null-key brand-new drafts are the
+  // one thing the merge appends that also appear in the New Cards section;
+  // liveList filters those out so they aren't listed twice.
+  const all: CardTemplate[] = [...AFFINITIES.flatMap((a) => [...getSpellPool(a), ...getLeylinePool(a)]), ...getTokenPool()];
   return new Map(all.map((c) => [cardKey(c), c]));
 }
 
@@ -946,6 +951,14 @@ export function CardEditor() {
     () => drafts.filter((d) => d.cardKey === null && sectionTypes.includes(d.type)),
     [drafts, sectionTypes],
   );
+  // A brand-new (null-cardKey) draft gets appended to the merged pool under
+  // a synthetic "<affinity>::<name>" key, so it would otherwise appear both
+  // here in the live list AND in the New Cards section. Exclude those synthetic
+  // keys from the live list — New Cards owns them.
+  const newDraftKeys = useMemo(
+    () => new Set(drafts.filter((d) => d.cardKey === null).map((d) => `${d.affinity}::${d.name}`)),
+    [drafts],
+  );
 
   const liveList = useMemo(
     () =>
@@ -953,7 +966,8 @@ export function CardEditor() {
         ? [] // Nexus Lords live in NEXUS_LORD_CARDS, not the CardTemplate pool — see nexusLordList below.
         : Array.from(liveIndex.entries())
             .map(([key, tmpl]) => ({ key, tmpl, primaryType: primaryTypeOf(tmpl), draft: draftsByCardKey.get(key) ?? null }))
-            .filter(({ tmpl, primaryType }) => {
+            .filter(({ key, tmpl, primaryType }) => {
+              if (newDraftKeys.has(key)) return false;
               if (!sectionTypes.includes(primaryType)) return false;
               if (affinityFilter.size > 0 && !affinityFilter.has(tmpl.affinity)) return false;
               if (typeFilter.size > 0 && !typeFilter.has(primaryType)) return false;
@@ -962,7 +976,7 @@ export function CardEditor() {
               return fuzzyMatch(search, tmpl.name);
             })
             .sort((a, b) => a.tmpl.name.localeCompare(b.tmpl.name)),
-    [view, liveIndex, draftsByCardKey, sectionTypes, affinityFilter, typeFilter, rarityFilter, setFilter, search],
+    [view, liveIndex, draftsByCardKey, newDraftKeys, sectionTypes, affinityFilter, typeFilter, rarityFilter, setFilter, search],
   );
 
   // The Nexus Lords section's own live list — lords are a different data
