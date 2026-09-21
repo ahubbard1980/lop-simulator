@@ -176,7 +176,9 @@ export const CARD_LAYOUT = {
   rulesText: {
     ...scaleAroundCenter(52 + PAD_X, 654 + PAD_Y, 640, 208),
     font: '"Noto Serif Devanagari", Georgia, serif', weight: 400, color: '#1c1a16',
-    maxFontPx: Math.round(7 * PT_TO_PX), minFontPx: Math.round(7 * PT_TO_PX * 0.6), align: 'left',
+    // Default one point larger than the old 7pt; the shrink floor stays at the
+    // old 7pt*0.6 so busy cards still fit exactly where they did before.
+    maxFontPx: Math.round(8 * PT_TO_PX), minFontPx: Math.round(7 * PT_TO_PX * 0.6), align: 'left',
   } satisfies TextFieldLayout,
   // Used instead of rulesText when flavor text is hidden (see
   // CardDraft.showFlavorText) — extends down to cover the space flavor text
@@ -184,7 +186,7 @@ export const CARD_LAYOUT = {
   rulesTextExpanded: {
     ...scaleAroundCenter(52 + PAD_X, 654 + PAD_Y, 640, 301),
     font: '"Noto Serif Devanagari", Georgia, serif', weight: 400, color: '#1c1a16',
-    maxFontPx: Math.round(7 * PT_TO_PX), minFontPx: Math.round(7 * PT_TO_PX * 0.6), align: 'left',
+    maxFontPx: Math.round(8 * PT_TO_PX), minFontPx: Math.round(7 * PT_TO_PX * 0.6), align: 'left',
   } satisfies TextFieldLayout,
   flavorText: {
     ...scaleAroundCenter(52 + PAD_X, 872 + PAD_Y, 640, 83),
