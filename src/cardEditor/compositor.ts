@@ -781,6 +781,68 @@ export function drawCardArt(
 // own fields) is a small manual nudge to correct for a source file whose
 // content isn't perfectly centered within its own canvas — a cover-fit
 // alone can only center the *file*, not artwork that's off-center inside it.
+// Frame PNGs arrive in two export formats, and which one a file is decides
+// what it gets fit to. The original regular (creature/noncreature) frames
+// run their artwork to the file's own edges and are fit into the inset
+// artSafeArea. Full-card PSD exports — every Leyline/Token/Nexus Lord frame,
+// and the newer regular frames too — carry the whole card's footprint, with
+// a transparent margin on every side that IS the black border/bleed zone;
+// fitting one of those into the inset box shrinks every element by that
+// margin. So the format is read off the file rather than assumed from its
+// class: a clear transparent margin on all four sides means a full-card
+// export. Margins measured on the real files: legacy regular frames <1.5%
+// on at least one side, full-card exports ~7-9% on every side.
+const FULL_CARD_EXPORT_MIN_MARGIN = 0.03;
+const FULL_CARD_EXPORT_SAMPLE_W = 200;
+const fullCardExportCache = new WeakMap<HTMLImageElement, boolean>();
+
+export function isFullCardFrameExport(img: HTMLImageElement): boolean {
+  const cached = fullCardExportCache.get(img);
+  if (cached !== undefined) return cached;
+  let result = false;
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  if (w > 0 && h > 0) {
+    // A downscaled copy is plenty to locate a margin several percent wide,
+    // and keeps this cheap for the multi-megapixel frame files.
+    const sw = FULL_CARD_EXPORT_SAMPLE_W;
+    const sh = Math.max(1, Math.round((h * sw) / w));
+    const canvas = document.createElement('canvas');
+    canvas.width = sw;
+    canvas.height = sh;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, sw, sh);
+      try {
+        const data = ctx.getImageData(0, 0, sw, sh).data;
+        let minX = sw;
+        let minY = sh;
+        let maxX = -1;
+        let maxY = -1;
+        for (let y = 0; y < sh; y += 1) {
+          for (let x = 0; x < sw; x += 1) {
+            if (data[(y * sw + x) * 4 + 3] > 16) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+        if (maxX >= 0) {
+          const margin = Math.min(minX / sw, (sw - 1 - maxX) / sw, minY / sh, (sh - 1 - maxY) / sh);
+          result = margin > FULL_CARD_EXPORT_MIN_MARGIN;
+        }
+      } catch {
+        // Tainted canvas (shouldn't happen — loadImage sets crossOrigin) —
+        // keep the legacy inset fit rather than crash the render.
+      }
+    }
+  }
+  fullCardExportCache.set(img, result);
+  return result;
+}
+
 export function drawCardFrame(
   ctx: CanvasRenderingContext2D,
   frameImage: HTMLImageElement,
@@ -1716,15 +1778,18 @@ export async function renderCard(canvas: HTMLCanvasElement, input: RenderCardInp
     if (input.nlRulesBoxImage && nlTemplate && input.fields.nlRulesBoxes?.length) {
       drawNlRulesBoxBanners(ctx, input.nlRulesBoxImage, input.fields.nlRulesBoxes);
     }
-    // Variant templates (Leyline/Non-basic Leyline/Token) are authored in
-    // the same full-card PSD as the Nexus Lords, so their frame exports
-    // carry the whole card's footprint — the transparent margin around the
-    // decorative elements IS the black border/bleed zone, and cover-fitting
-    // that file into the inset safe area (the regular-frame convention)
-    // would shrink everything by that margin. The FRAME therefore fits the
-    // full canvas exactly like a full-bleed template, while the ART above
-    // keeps the regular inset/black-border treatment.
-    const frameFitBox = input.fullBleed || isVariantTemplate(input.fields.template) ? FULL_BLEED_ART_AREA : fitBox;
+    // Full-card PSD exports (every variant-template frame, and newer regular
+    // frames — see isFullCardFrameExport) carry the whole card's footprint:
+    // the transparent margin around the decorative elements IS the black
+    // border/bleed zone, and cover-fitting that file into the inset safe
+    // area (the legacy regular-frame convention) would shrink everything by
+    // that margin. The FRAME therefore fits the full canvas exactly like a
+    // full-bleed template, while the ART above keeps the regular inset/black-
+    // border treatment.
+    const frameFitBox =
+      input.fullBleed || isVariantTemplate(input.fields.template) || isFullCardFrameExport(input.frameImage)
+        ? FULL_BLEED_ART_AREA
+        : fitBox;
     drawCardFrame(
       ctx,
       input.frameImage,

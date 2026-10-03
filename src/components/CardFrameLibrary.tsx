@@ -766,7 +766,10 @@ export function CardFrameLibrary() {
             ) : (
               <p className="card-editor-hint">
                 Art is drawn full-bleed behind this frame, so the frame image should have a mostly-transparent center — only the
-                border/name-plate/etc. should be opaque. The dashed gold line is a guide for where the black border should sit.
+                border/name-plate/etc. should be opaque. Either export format works: a full-card PSD export (transparent margin
+                on every side, same as the Leyline/Token frames) is detected automatically and stretched across the whole print
+                canvas, while an older export whose artwork runs to the file edge is fit inside the black border. The dashed
+                gold line is a guide for where the black border should sit.
                 The blue text-field boxes are sized for shrink-to-fit padding, not the frame's visual edges — use the Frame
                 Element Guide (right) instead to line up the actual nameplate/cost circle/rules plaque/P&amp;T badges. The
                 red/orange print guide shows MakePlayingCards' real cut line and safe margin — anything from the frame's own
